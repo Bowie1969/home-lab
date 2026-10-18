@@ -1,5 +1,13 @@
 # Keystone Range — Architecture & Design
 
+> **New in 2026-10:** a parallel **Simple Range** — three VMs, two custom
+> exploits, one flag — now ships alongside the full design below.
+> See [`docs/SIMPLE-RANGE-2026-10.md`](docs/SIMPLE-RANGE-2026-10.md) for the
+> design and [`docs/SIMPLE-RANGE-RUNBOOK.md`](docs/SIMPLE-RANGE-RUNBOOK.md)
+> for the Brain-side build. That is the recommended day-to-day learning
+> path. Everything below is the advanced track: 13 VMs, 30 modules,
+> ~10 paths to crown. Both exist in-tree; neither deletes the other.
+
 Keystone is a modular, run-agnostic benchmark range for AI security agents. It is
 a fresh architecture with no dependency on any prior lab. The design goals:
 
