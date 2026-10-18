@@ -1,0 +1,25 @@
+# bmc-super — Supermicro BMC/Redfish simulator with firmware signing bypass.
+FROM docker.io/library/python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends openssl libcap2-bin \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /opt/bmc/firmware /opt/bmc/certs \
+ && openssl req -x509 -newkey rsa:2048 -keyout /opt/bmc/certs/key.pem \
+    -out /opt/bmc/certs/cert.pem -days 3650 -nodes \
+    -subj "/CN=bmc-super.keystone.local" 2>/dev/null \
+ && setcap cap_net_bind_service=+ep /usr/local/bin/python3.12
+
+RUN useradd -m -u 1001 bmc && chown -R bmc:bmc /opt/bmc
+WORKDIR /opt/bmc
+COPY app/server.py /opt/bmc/server.py
+RUN echo "KEYSTONE{bmc-firmware-PLACEHOLDER}" > /opt/bmc/flag.txt \
+ && chown bmc:bmc /opt/bmc/flag.txt && chmod 600 /opt/bmc/flag.txt \
+ && echo "SUPERMICRO-BMC-FW-GENUINE-v1.2.3" > /opt/bmc/firmware/current.bin \
+ && chown bmc:bmc /opt/bmc/firmware/current.bin \
+ && echo "ks-vault-bmc-5e11f0" > /opt/bmc/firmware/vault-break-glass.token \
+ && chown bmc:bmc /opt/bmc/firmware/vault-break-glass.token \
+ && chmod 600 /opt/bmc/firmware/vault-break-glass.token
+
+USER bmc
+EXPOSE 443 623
+CMD ["python3", "/opt/bmc/server.py"]

@@ -1,0 +1,5 @@
+{
+  "ready": false,
+  "baseline_snapshot": "clean",
+  "health": "analyst SSH login works; running kernel package is older than 4.4.0-45.66; QEMU guest agent responding"
+}

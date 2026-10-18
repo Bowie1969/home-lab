@@ -1,0 +1,139 @@
+{
+  "range": "happy-time-weed",
+  "title": "Happy Time Weed — ransomware range",
+  "zones": [
+    {
+      "id": "operators",
+      "label": "Red Team Platform"
+    },
+    {
+      "id": "corp",
+      "label": "HTW Office · VLAN 50"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "parrot-operator",
+      "label": "Red Team Control Station",
+      "host": "Primary red-team workstation",
+      "type": "operator",
+      "zone": "operators",
+      "operator_platform": true,
+      "address": "192.168.0.10",
+      "state": "reachable",
+      "position": [8.0, 50.0]
+    },
+    {
+      "id": "htw-server",
+      "label": "HTW Server · AD + Web + Crown",
+      "host": "htw-server (600)",
+      "type": "ad",
+      "zone": "corp",
+      "address": "10.50.0.10",
+      "state": "reachable",
+      "position": [45.0, 50.0],
+      "stores": [
+        "seed-to-sale database",
+        "patient records",
+        "financials",
+        "domain credentials",
+        "file shares"
+      ]
+    },
+    {
+      "id": "htw-owner",
+      "label": "HTW Owner Workstation",
+      "host": "htw-owner (601)",
+      "type": "workstation",
+      "zone": "corp",
+      "address": "10.50.0.11",
+      "state": "reachable",
+      "position": [78.0, 12.0]
+    },
+    {
+      "id": "htw-accountant",
+      "label": "HTW Accounting Workstation",
+      "host": "htw-accountant (602)",
+      "type": "workstation",
+      "zone": "corp",
+      "address": "10.50.0.12",
+      "state": "reachable",
+      "position": [78.0, 27.0]
+    },
+    {
+      "id": "htw-budtender",
+      "label": "HTW Budtender POS",
+      "host": "htw-budtender (603)",
+      "type": "workstation",
+      "zone": "corp",
+      "address": "10.50.0.13",
+      "state": "reachable",
+      "position": [78.0, 42.0]
+    },
+    {
+      "id": "htw-office",
+      "label": "HTW Office Manager",
+      "host": "htw-office (604)",
+      "type": "web",
+      "zone": "corp",
+      "address": "10.50.0.14",
+      "state": "reachable",
+      "position": [78.0, 67.0]
+    },
+    {
+      "id": "htw-it",
+      "label": "HTW IT Contractor",
+      "host": "htw-it (605)",
+      "type": "workstation",
+      "zone": "corp",
+      "address": "10.50.0.15",
+      "state": "reachable",
+      "position": [78.0, 82.0]
+    }
+  ],
+  "edges": [
+    {
+      "src": "parrot-operator",
+      "dst": "htw-server",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "only exposed ingress · TCP 80/443"
+    },
+    {
+      "src": "htw-server",
+      "dst": "htw-owner",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "htw-server",
+      "dst": "htw-accountant",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "htw-server",
+      "dst": "htw-budtender",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "htw-server",
+      "dst": "htw-office",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "htw-server",
+      "dst": "htw-it",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    }
+  ]
+}

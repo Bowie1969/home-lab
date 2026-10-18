@@ -1,0 +1,27 @@
+<!-- Owner-supplied, licensed Windows 7 SP1 disk. Lab bridge only: no NAT/uplink. -->
+<domain type="kvm">
+  <name>win7-finance</name>
+  <memory unit="GiB">3</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/><hyperv><relaxed state="on"/></hyperv></features>
+  <cpu mode="host-passthrough"/>
+  <devices>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/keystone/win7-eternalblue.qcow2"/>
+      <target dev="sda" bus="sata"/>
+    </disk>
+    <interface type="bridge">
+      <source bridge="keystone-corp"/>
+      <model type="e1000e"/>
+    </interface>
+    <graphics type="spice" autoport="yes" listen="127.0.0.1"/>
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+  </devices>
+</domain>

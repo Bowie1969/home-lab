@@ -1,0 +1,28 @@
+<!-- Vulnerable Samba guest. The keystone-corp bridge must remain isolated. -->
+<domain type="kvm">
+  <name>files-legacy</name>
+  <memory unit="GiB">2</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode="host-passthrough"/>
+  <devices>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/keystone/samba-45.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <interface type="bridge">
+      <source bridge="keystone-corp"/>
+      <model type="virtio"/>
+    </interface>
+    <serial type="pty"><target port="0"/></serial>
+    <console type="pty"><target type="serial" port="0"/></console>
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+  </devices>
+</domain>

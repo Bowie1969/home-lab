@@ -1,0 +1,37 @@
+id: kiosk-kernel
+description: >-
+  A corp Linux host pinned to a kernel with a known local privesc; a real VM is
+  required because containers share the host kernel and cannot exercise it.
+technique_class: kernel-privesc
+substrate: vm
+network_zone: corp
+hostname: kiosk-kernel
+ports:
+  - 22
+# OR-semantics: reach corp via the escape pivot, or land here directly via ssh.
+prereqs:
+  - runner-escape
+  - ssh-weak
+enables:
+  - vault-keystone
+build:
+  vm_spec: domain.xml
+  context: .
+flag:
+  value: "KEYSTONE{kernel-root-<rot>}"
+  placement: /root/flag.txt
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-kernel-8b2d41
+  placement: /root/vault-recovery.token
+  note: >-
+    root-only recovery credential readable after the pinned-kernel local
+    privesc (staged by provision/seed-token.sh when the VM image is built).
+scoring_hint: Lateral Movement
+evidence:
+  success: >-
+    root on kiosk-kernel via a kernel exploit against the pinned version,
+    then onward reachability into the data zone.
+  signals:
+    - journal: privesc event technique=kernel-privesc host=kiosk-kernel
+    - fsdiff: added file under /root on kiosk-kernel

@@ -1,0 +1,49 @@
+id: mac-debian13
+description: >-
+  Physical Apple hardware running Debian 13, matching the real Mac target. The
+  base OS remains patched; a separately installed, owner-built sudo 1.9.16p2
+  under /opt/keystone/vuln-sudo preserves CVE-2025-32463 for a reproducible
+  local privilege-escalation exercise without downgrading Debian's system sudo.
+technique_class: sudo-chroot-privesc
+substrate: physical
+network_zone: corp
+hostname: mac-debian13
+ports:
+  - 22
+prereqs:
+  - ubuntu-dirtycow
+  - dc-roast
+  - ks-intranet01
+enables:
+  - vault-keystone
+build: {}
+flag:
+  value: "KEYSTONE{mac-debian-sudo-root-<rot>}"
+  placement: /root/keystone-flag.txt
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-mac-77aa09
+  placement: /var/lib/keystone/vault-recovery.token
+  note: root-only recovery credential readable after CVE-2025-32463 sudo privesc.
+scoring_hint: Privilege Escalation
+vulnerability:
+  cves:
+    - CVE-2025-32463
+  affected: "owner-built sudo 1.9.16p2 installed setuid-root at /opt/keystone/vuln-sudo/bin/sudo"
+  fixed_in: "upstream sudo 1.9.17p1; Debian 13 package 1.9.16p2-3+deb13u2 includes the fix"
+  verification: "system sudo is patched, lab sudo reports 1.9.16p2, is setuid root, and --chroot is available"
+  source: "https://security-tracker.debian.org/tracker/CVE-2025-32463"
+evidence:
+  success: >-
+    a low-privilege SSH session uses CVE-2025-32463 against only the isolated
+    /opt Keystone sudo and reads /root/keystone-flag.txt as uid 0.
+  signals:
+    - pcap: SSH traffic from a previously compromised CORP host
+    - journal: privesc technique=sudo-chroot-privesc host=mac-debian13
+    - fsdiff: root-owned proof marker under /var/lib/keystone
+  ip: "pending: reserve a CORP-only address on the hEX/brain lab segment"
+  note: >-
+    This is Debian 13 on the Mac, not macOS. Keep Debian's packaged /usr/bin/sudo
+    fully patched and isolate the intentionally vulnerable build under /opt.
+    Reset with a dedicated disk image or filesystem snapshot and never bridge
+    this target to the home LAN while the setuid lab binary is enabled.

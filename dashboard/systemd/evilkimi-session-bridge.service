@@ -1,0 +1,18 @@
+[Unit]
+Description=EvilKimi session bridge — an operator session's own hook log -> Keystone dashboard
+Documentation=file:///home/will_cyber/Projects/lab-dashboard/README.md
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/will_cyber/Projects/lab-dashboard/scripts/evilkimi_session_bridge.py
+Restart=on-failure
+RestartSec=10
+# Read-only publisher: it tails ~/.local/state/evilkimi/sessions/*.jsonl (written
+# by evilkit.kimihook whether or not a dashboard run was configured) and appends
+# action/target/exit-status events to runs/evilkimi-live-<session>/. It copies no
+# command output, credentials, flags or model reasoning, opens no network
+# connection, and never runs the operator's commands.
+
+[Install]
+WantedBy=default.target

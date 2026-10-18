@@ -1,0 +1,24 @@
+# Generated range plan — regenerate with `python3 -m keystone.generator`
+/build/
+
+# Per-run evidence & dashboard output
+/runs/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Ground truth must NEVER be committed. Live run keys live under /runs/ (ignored
+# above) and the secure dir lives OUTSIDE the tree. The ONLY committed
+# .keystone_scoring.json files are the synthetic ones under tests/fixtures/.
+/secure/
+ground_truth.json
+
+# Local pre-rebuild snapshots (nftables rulesets, switch config dumps, prior
+# code backups). Reference material, not source of truth; kept out of git.
+/backups/
+/lab-configs/
+
+# Stale copies of the mcp.json next to the live one (any *.bak-* suffix).
+*.mcp.json.bak-*

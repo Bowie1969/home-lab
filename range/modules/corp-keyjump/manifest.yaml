@@ -1,0 +1,33 @@
+id: corp-keyjump
+description: >-
+  The CORP-tier build/jump host that trusts the deploy key left on the DMZ
+  key-reuse box. Key-only auth — no password to guess — so the only way in is the
+  stolen key reused from DMZ. Landing here is a CORP foothold and the start of the
+  deeper pivot toward DATA; it continues the intended Linux-privesc branch.
+technique_class: ssh-key-reuse
+substrate: container
+network_zone: corp
+hostname: corp-keyjump
+ports:
+  - 22
+prereqs:
+  - key-reuse
+enables:
+  - ubuntu-dirtycow
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{corp-keyjump-<rot>}"
+  placement: /home/svc-deploy/flag.txt
+  rotate_per_run: true
+scoring_hint: Lateral Movement
+evidence:
+  derived_from: "Cowrie honeypot capture, campaign C3 (~/Projects/honeypot-osint/)"
+  success: >-
+    password-less SSH into corp-keyjump as svc-deploy using the key stolen from
+    key-reuse, establishing a CORP foothold.
+  signals:
+    - journal: foothold event technique=ssh-key-reuse host=corp-keyjump zone=corp
+    - journal: lateral event src=key-reuse dst=corp-keyjump auth=public-key
+    - pcap: tcp/22 session into corp-keyjump authenticated by public key

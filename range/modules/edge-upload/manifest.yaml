@@ -1,0 +1,33 @@
+# Keystone module manifest — see MANIFEST_SCHEMA.md
+id: edge-upload
+description: >-
+  DMZ file-upload portal with no content-type or extension validation; uploaded
+  files land in a directory the app will execute. Classic unauthenticated RCE.
+technique_class: web-rce
+substrate: container
+network_zone: dmz
+hostname: edge-upload
+ports:
+  - 8080
+prereqs: []            # empty prereqs == an initial-access vector
+enables:
+  - cron-root
+  - runner-escape
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{edge-rce-<rot>}"
+  placement: /var/www/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.111 (real, macvlan on dmz-web-a VM 970, brain vmbr9 VLAN 9)"
+  host: brain dmz-web-a (VM 970)
+  success: >-
+    code execution as the web user on edge-upload (uid of the app process),
+    evidenced by a new file under the app dir and a shell/command response.
+  signals:
+    - fsdiff: added file under /var/www/uploads
+    - journal: foothold event technique=web-rce host=edge-upload

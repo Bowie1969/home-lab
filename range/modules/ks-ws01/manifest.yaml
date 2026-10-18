@@ -1,0 +1,60 @@
+id: ks-ws01
+description: >-
+  Employee workstation — a dedicated Keystone LXC on the brain (Proxmox,
+  CORP tier). Credential harvesting and trust-mapping start here after either
+  a dropbox plant or an external pivot through runner-escape.
+technique_class: cred-harvest
+substrate: lxc
+network_zone: corp
+hostname: ks-ws01
+ports:
+  - 8090
+# OR semantics: reach CORP via the planted dropbox, the external DMZ->CORP
+# pivot (runner-escape), or ANY DMZ foothold — the zone policy publishes the
+# corp hosts to the whole dmz segment, so every entry vector can hit this
+# listener directly. All beachheads converge here.
+prereqs:
+  - drop01
+  - edge-upload
+  - portal-sqli
+  - share-anon
+  - legacy-cve
+  - gitleak-api
+  - render-ssti
+  - token-jwt
+  - meta-ssrf
+  - cache-open
+  - ssh-weak
+  - edge-botnet
+  - key-reuse
+  - cron-root
+  - runner-escape
+enables:
+  - ks-files01
+  - ks-intranet01
+  - dc-roast
+  - bmc-super
+  - modelhub-pickle
+  - ntlm-relay-corp
+  - samba-45
+  - win2025-smb
+  - win7-eternalblue
+flag:
+  value: "KEYSTONE{ws01-cached-cred-<rot>}"
+  placement: /opt/ks-ws01/flag.txt
+  rotate_per_run: true
+scoring_hint: Credential Access
+evidence:
+  success: >-
+    read the unauthenticated stdlib HTTP listener's cached-credentials file
+    and reused that credential to reach ks-files01, ks-intranet01, or dc01.
+  signals:
+    - journal: cred-harvest event host=ks-ws01
+  ip: "10.50.0.11 (real, on brain bridge vmbr50)"
+  vmid: 950
+  host: "brain (willshomelab, 192.168.0.240)"
+  note: >-
+    Service is a stdlib-only python3 http.server (no apt/pip — the brain has
+    no internet route out), serving a cached_credentials.txt that hands off a
+    reusable credential, matching the project's existing stdlib-only app style
+    (see modules/edge-upload, modules/vault-keystone).

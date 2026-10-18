@@ -1,0 +1,14 @@
+# runner-escape — CI runner agent executing job files as root, with a planted
+# "host" filesystem at /hostfs modelling an over-mounted host path. Per
+# BRINGUP.md the owner's real / is NEVER mounted here; the escape target is
+# the in-image /hostfs tree and the flag at /hostfs/root/flag.txt.
+FROM docker.io/library/debian:12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 \
+ && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /jobs /hostfs/etc /hostfs/root /hostfs/home /hostfs/tmp \
+ && printf 'root:x:0:0:root:/root:/bin/sh\nrunner:x:1000:1000:runner:/home/runner:/bin/sh\n' > /hostfs/etc/passwd \
+ && echo "runner-host" > /hostfs/etc/hostname \
+ && chmod 1777 /jobs /hostfs/tmp && chmod 700 /hostfs/root
+COPY app/runner.py /app/runner.py
+CMD ["python3", "/app/runner.py"]

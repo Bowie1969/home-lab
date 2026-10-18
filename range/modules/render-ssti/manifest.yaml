@@ -1,0 +1,29 @@
+id: render-ssti
+description: >-
+  A "render your profile" feature passes user input straight into a server-side
+  template engine, yielding SSTI -> RCE (deserialization/SSTI class).
+technique_class: deserialization-ssti
+substrate: container
+network_zone: dmz
+hostname: render-ssti
+ports:
+  - 8084
+prereqs: []
+enables:
+  - runner-escape
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{ssti-rce-<rot>}"
+  placement: /app/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.113 (real, macvlan on dmz-web-a VM 970, brain vmbr9 VLAN 9)"
+  host: brain dmz-web-a (VM 970)
+  success: template-injection payload executes a command and returns output.
+  signals:
+    - journal: foothold event technique=deserialization-ssti host=render-ssti
+    - fsdiff: added file under /app

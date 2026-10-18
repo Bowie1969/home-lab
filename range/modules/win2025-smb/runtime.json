@@ -1,0 +1,5 @@
+{
+  "ready": false,
+  "baseline_snapshot": "clean",
+  "health": "TCP 445 open; SMB dialect accepted; chosen KB absent per Get-HotFix; QEMU guest agent responding"
+}

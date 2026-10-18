@@ -1,0 +1,51 @@
+id: ubuntu-dirtycow
+description: >-
+  Ubuntu 16.04 workstation pinned below the Dirty COW fix boundary. The remote
+  service only yields a low-privilege shell; reaching the root flag requires a
+  genuine local kernel privilege escalation in an isolated VM.
+technique_class: linux-cow-privesc
+substrate: vm
+network_zone: corp
+hostname: ubuntu-ops
+ports:
+  - 22
+prereqs:
+  - win7-eternalblue
+  - samba-45
+  - ks-files01
+  - corp-keyjump
+  - win2025-smb
+enables:
+  - mac-debian13
+  - vault-keystone
+build:
+  vm_spec: domain.xml
+  context: .
+flag:
+  value: "KEYSTONE{dirtycow-root-<rot>}"
+  placement: /root/flag.txt
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-dirtycow-d15c0
+  placement: /root/.vault-recovery.token
+  note: root-only recovery credential readable after Dirty COW privesc to root.
+scoring_hint: Privilege Escalation
+vulnerability:
+  cves:
+    - CVE-2016-5195
+  affected: "Ubuntu 16.04 with a running kernel package older than 4.4.0-45.66"
+  fixed_in: "Ubuntu linux 4.4.0-45.66"
+  verification: "the running kernel package compares lower than 4.4.0-45.66 and the analyst SSH account is non-root"
+  source: "https://ubuntu.com/security/cve-2016-5195"
+evidence:
+  success: >-
+    a low-privilege analyst SSH session is escalated to uid 0 through
+    CVE-2016-5195 and /root/flag.txt is read.
+  signals:
+    - pcap: SSH session from an already compromised CORP host
+    - journal: privesc technique=linux-cow-privesc host=ubuntu-dirtycow
+    - fsdiff: root-owned proof marker under /var/lib/keystone
+  note: >-
+    The validation script refuses patched kernels. Supply an owner-built Ubuntu
+    disk and preserve it as an offline snapshot; do not expose this guest to an
+    update mirror after the baseline is accepted.

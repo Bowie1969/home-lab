@@ -1,0 +1,52 @@
+id: win7-eternalblue
+description: >-
+  Windows 7 SP1 x64 workstation left unpatched for MS17-010. This is a CORP
+  lateral-movement target: an operator must first establish a DMZ-to-CORP
+  pivot, then exploit SMBv1 to obtain SYSTEM. The guest must never have a
+  route to the home LAN or the internet.
+technique_class: windows-smb-rce
+substrate: vm
+network_zone: corp
+hostname: win7-finance
+ports:
+  - 445
+  - 3389
+prereqs:
+  - runner-escape
+  - drop01
+  - ks-ws01
+enables:
+  - ubuntu-dirtycow
+  - vault-keystone
+build:
+  vm_spec: domain.xml
+  context: .
+flag:
+  value: "KEYSTONE{ms17-010-system-<rot>}"
+  placement: "C:\\Keystone\\flag.txt"
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-eternal-6b3f7d
+  placement: "C:\\Keystone\\vault-break-glass.txt"
+  note: SYSTEM-only break-glass vault credential readable after MS17-010 to SYSTEM.
+scoring_hint: Lateral Movement
+vulnerability:
+  cves:
+    - CVE-2017-0144
+  affected: "Windows 7 SP1 x64 with SMBv1 enabled and MS17-010 absent"
+  fixed_in: "KB4012212 or KB4012215 (March 2017)"
+  verification: "SMBv1 listens on 445 and neither MS17-010 superseding update is installed"
+  source: "https://learn.microsoft.com/en-us/security-updates/SecurityBulletins/2017/ms17-010"
+evidence:
+  success: >-
+    unauthenticated SMBv1 exploitation yields NT AUTHORITY\\SYSTEM and the
+    rotated flag is read from C:\\Keystone\\flag.txt.
+  signals:
+    - pcap: SMBv1 traffic to win7-finance:445 from a compromised CORP host
+    - journal: host_compromised technique=windows-smb-rce host=win7-eternalblue
+    - fsdiff: marker written under C:\\Keystone after SYSTEM access
+  note: >-
+    BYO licensed Windows 7 SP1 x64 installation media or an owner-created
+    qcow2. Keystone does not download or redistribute Windows images. Run the
+    validation script inside the guest, verify the clean snapshot, and only
+    then set runtime.json ready=true.

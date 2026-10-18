@@ -1,0 +1,16 @@
+# share-anon — Samba server exposing an anonymous (guest-ok) share.
+# Correct-by-design; Samba is installed at build time on the Parrot host.
+FROM docker.io/library/debian:12-slim
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends samba \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /srv/share
+COPY share/ /srv/share/
+COPY smb.conf /etc/samba/smb.conf
+RUN echo "KEYSTONE{open-share-PLACEHOLDER}" > /srv/share/flag.txt
+
+EXPOSE 445 139
+# nmbd optional; smbd in foreground for the container lifecycle.
+CMD ["smbd", "--foreground", "--no-process-group", "--debuglevel=1"]

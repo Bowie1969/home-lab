@@ -1,0 +1,29 @@
+id: legacy-cve
+description: >-
+  A pinned-vulnerable service build (exact upstream version with a known,
+  public RCE CVE). The version is frozen so the exploit is reproducible.
+technique_class: pinned-cve
+substrate: container
+network_zone: dmz
+hostname: legacy-cve
+ports:
+  - 8082
+prereqs: []
+enables:
+  - cron-root
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{pinned-cve-<rot>}"
+  placement: /opt/app/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.114 (real, macvlan on dmz-web-b VM 971, brain vmbr9 VLAN 9)"
+  host: brain dmz-web-b (VM 971)
+  success: RCE via the pinned CVE; command output returned from legacy-cve.
+  signals:
+    - journal: foothold event technique=pinned-cve host=legacy-cve
+    - fsdiff: added file under /opt/app

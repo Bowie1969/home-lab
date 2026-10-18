@@ -1,0 +1,31 @@
+id: share-anon
+description: >-
+  Anonymous SMB share exposing a "IT handover" document that contains domain
+  credentials (credential document on an open share).
+technique_class: smb-creddoc
+substrate: container
+network_zone: dmz
+hostname: share-anon
+ports:
+  - 445
+prereqs: []
+enables:
+  - dc-roast
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{open-share-<rot>}"
+  placement: /srv/share/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.120 (real, macvlan on dmz-svc VM 972, brain vmbr9 VLAN 9)"
+  host: brain dmz-svc (VM 972)
+  success: >-
+    anonymous read of the public share and retrieval of handover.txt containing
+    the corp credential helpdesk\\svc_backup.
+  signals:
+    - journal: foothold event technique=smb-creddoc host=share-anon
+    - journal: recon event referencing credential svc_backup

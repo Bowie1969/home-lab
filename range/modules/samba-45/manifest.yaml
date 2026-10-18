@@ -1,0 +1,50 @@
+id: samba-45
+description: >-
+  Debian file server running Samba 4.5.9 with a writable share, intentionally
+  preserving CVE-2017-7494. It provides a second remote-code-execution branch
+  inside CORP after a pivot and teaches service-version validation rather than
+  assuming that every SMB host is Windows.
+technique_class: samba-module-rce
+substrate: vm
+network_zone: corp
+hostname: files-legacy
+ports:
+  - 139
+  - 445
+prereqs:
+  - runner-escape
+  - drop01
+  - ks-ws01
+enables:
+  - ubuntu-dirtycow
+  - vault-keystone
+build:
+  vm_spec: domain.xml
+  context: .
+flag:
+  value: "KEYSTONE{sambacry-root-<rot>}"
+  placement: /root/flag.txt
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-samba-41ae92
+  placement: /root/vault-recovery.token
+  note: root-only recovery credential readable after CVE-2017-7494 module-load to root.
+scoring_hint: Lateral Movement
+vulnerability:
+  cves:
+    - CVE-2017-7494
+  affected: "Samba 4.5.9 with a writable share and nt pipe support enabled"
+  fixed_in: "Samba 4.5.10"
+  verification: "smbd -V reports 4.5.9 and the drop share accepts an anonymous upload"
+  source: "https://www.samba.org/samba/history/samba-4.5.10.html"
+evidence:
+  success: >-
+    a shared library uploaded through the writable share is loaded by smbd,
+    code executes as root, and /root/flag.txt is read.
+  signals:
+    - pcap: SMB upload followed by a named-pipe request to files-legacy
+    - journal: host_compromised technique=samba-module-rce host=samba-45
+    - fsdiff: uploaded shared object in /srv/keystone/drop
+  note: >-
+    Provisioning consumes an owner-supplied Samba 4.5.9 source archive inside
+    the guest. No vulnerable binary or exploit payload is committed here.

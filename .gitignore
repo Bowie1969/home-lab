@@ -1,0 +1,53 @@
+# ============================================================================
+# Monorepo hygiene — lab ground-truth, scoring and secrets never leave the box.
+# The range is a benchmark for evaluating AI agents against the owner's own
+# synthetic lab. Its live-run evidence, private scoring keys and any credential
+# are excluded here; the synthetic fixtures under range/tests/fixtures/ are the
+# ONLY scoring-shaped files that are intentionally committed.
+# ============================================================================
+
+# Keystone live-run output: per-run evidence, score.json, dashboard renders.
+/range/runs/
+/range/build/
+/range/backups/
+/range/secure/
+/range/lab-configs/
+
+# Private ground-truth / scoring material (lab-only).
+/range/ground_truth.json
+/range/scoring_key.json
+*.scoring*
+cowrie-logs/
+
+# Secrets and runtime state.
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# Dashboard server-generated runtime state.
+/dashboard/logs/
+/dashboard/data/
+/dashboard/captures/
+
+# Python / Node cruft.
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Backup / editor cruft (the source trees carried a lot of *.bak-* snapshots).
+*.bak
+*.bak-*
+
+# Editor and agent-tool local config.
+.claude/
+.codex/
+.agents/
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,37 @@
+id: edge-botnet
+description: >-
+  A neglected internet-facing box with a guessable admin password (admin:admin,
+  the single most-tried credential on the Cowrie sensor) and a complete
+  outbound-fetch toolset (wget, curl, tftp, busybox, ftp). It models the Mirai /
+  Gafgyt infection chain observed live: weak-cred SSH foothold, then a loader
+  pulled and executed over whatever transfer method the host permits, across
+  multiple CPU architectures, then self-cleaned. The surface that EvilKit's
+  ingress-tool-transfer and multi-arch-staging emulations exercise.
+technique_class: ingress-tool-transfer
+substrate: container
+network_zone: dmz
+hostname: edge-botnet
+ports:
+  - 22
+prereqs: []
+enables:
+  - key-reuse
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{edge-botnet-<rot>}"
+  placement: /srv/loader/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access / Ingress Tool Transfer
+evidence:
+  derived_from: "Cowrie honeypot capture 2026-09-27..2026-10-16, campaign C1/C2 (~/Projects/honeypot-osint/)"
+  success: >-
+    interactive shell as 'admin' via the guessed password, then a loader marker
+    fetched over one or more transfer methods and executed, writing its canary.
+  signals:
+    - journal: foothold event technique=ingress-tool-transfer host=edge-botnet
+    - pcap: outbound tcp/80 or udp/69 (tftp) from edge-botnet to the operator sink
+    - fsdiff: loader marker + canary written under /tmp or /srv/loader then removed
+    - note: multi-arch staging — arch-matched marker selected from uname -m

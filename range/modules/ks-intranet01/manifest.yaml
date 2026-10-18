@@ -1,0 +1,38 @@
+id: ks-intranet01
+description: >-
+  Internal intranet/app host — a dedicated Keystone LXC on the brain (Proxmox,
+  CORP tier). An internal-only admin panel, reachable only once a foothold
+  exists inside CORP; it leaks a domain-service credential.
+technique_class: ssrf-pivot
+substrate: lxc
+network_zone: corp
+hostname: ks-intranet01
+ports:
+  - 8092
+prereqs:
+  - ks-ws01
+enables:
+  - dc-roast
+  - vault-keystone
+  - mac-debian13
+flag:
+  value: "KEYSTONE{intranet01-admin-<rot>}"
+  placement: /opt/ks-intranet01/flag.txt
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-svc-7f3c21
+  placement: "ks-intranet01:/admin config (the leaked vault service account)"
+  note: the original service credential — the internal-only admin panel leaks it.
+scoring_hint: Lateral Movement
+evidence:
+  success: >-
+    reached the internal-only admin panel and recovered a domain-service
+    credential, mapping the trust needed to move toward the domain controller.
+  signals:
+    - journal: ssrf-pivot event host=ks-intranet01
+  ip: "10.50.0.13 (real, on brain bridge vmbr50)"
+  vmid: 952
+  host: "brain (willshomelab, 192.168.0.240)"
+  note: >-
+    stdlib-only python3 http.server app (no apt/pip available offline on the
+    brain), consistent with the project's existing stdlib-only app style.

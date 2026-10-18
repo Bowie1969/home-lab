@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "redteamscripting": {
+      "command": "python3",
+      "args": [
+        "/home/will_cyber/Projects/keystone-range/mcp-redteamscripting/server.py",
+        "--stdio"
+      ]
+    },
+    "mission": {
+      "command": "python3",
+      "args": [
+        "/home/will_cyber/Projects/keystone-range/keystone/run_control.py"
+      ]
+    }
+  }
+}

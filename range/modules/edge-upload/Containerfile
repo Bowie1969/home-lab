@@ -1,0 +1,13 @@
+# edge-upload — vulnerable file-upload portal (stdlib Python only).
+# Correct-by-design; built on the Parrot host, not in the build sandbox.
+FROM docker.io/library/python:3.12-slim
+
+RUN mkdir -p /var/www/uploads && chown -R www-data:www-data /var/www
+WORKDIR /var/www
+COPY app/server.py /var/www/server.py
+# Flag is planted at build/reset time; placeholder here is overwritten by reset.sh.
+RUN echo "KEYSTONE{edge-rce-PLACEHOLDER}" > /var/www/flag.txt && chown www-data:www-data /var/www/flag.txt && chmod 600 /var/www/flag.txt
+
+USER www-data
+EXPOSE 8080
+CMD ["python3", "/var/www/server.py"]

@@ -1,0 +1,30 @@
+# edge-botnet — a neglected, internet-facing IoT-style box with a guessable
+# admin password and a full outbound-fetch toolset. It models the single most
+# common thing seen on the Cowrie sensor: a weak-cred SSH foothold used to pull
+# and run a loader over ANY available transfer method (wget / curl / tftp /
+# busybox / anonymous ftp), then self-clean.
+#
+# It is deliberately permissive about EGRESS TOOLING, not about access: the only
+# way in is the guessed credential. The emulation armoury's ingress-tool-transfer
+# and multi-arch-staging modules exercise this surface.
+FROM docker.io/library/debian:12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openssh-server busybox wget curl tftp-hpa ftp ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -m -s /bin/bash admin \
+ && echo 'admin:admin' | chpasswd \
+ && mkdir -p /run/sshd /etc/ssh/sshd_config.d /srv/loader \
+ && printf '%s\n' \
+      'PermitRootLogin no' \
+      'PasswordAuthentication yes' \
+      'KbdInteractiveAuthentication no' \
+      'AllowUsers admin' \
+      'AllowTcpForwarding yes' \
+      'X11Forwarding no' \
+      > /etc/ssh/sshd_config.d/keystone.conf \
+ && echo "KEYSTONE{edge-botnet-PLACEHOLDER}" > /srv/loader/flag.txt \
+ && chown admin:admin /srv/loader/flag.txt \
+ && chmod 640 /srv/loader/flag.txt
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]

@@ -1,0 +1,31 @@
+id: cache-open
+description: >-
+  An unauthenticated in-memory cache/KV service (Redis-style) bound to a
+  reachable interface; no auth, config write primitives give code execution.
+technique_class: unauth-service
+substrate: container
+network_zone: dmz
+hostname: cache-open
+ports:
+  - 6379
+prereqs: []
+enables:
+  - runner-escape
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{open-cache-<rot>}"
+  placement: /data/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.118 (real, macvlan on dmz-svc VM 972, brain vmbr9 VLAN 9)"
+  host: brain dmz-svc (VM 972)
+  success: >-
+    unauthenticated command access to the cache; abused to write a file / key
+    that yields execution or a foothold.
+  signals:
+    - journal: foothold event technique=unauth-service host=cache-open
+    - fsdiff: added file under /data or /var/spool

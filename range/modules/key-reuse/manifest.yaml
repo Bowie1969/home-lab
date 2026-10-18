@@ -1,0 +1,38 @@
+id: key-reuse
+description: >-
+  A DMZ CI/deploy box whose service account leaves a private SSH key in its home
+  directory. The key is also trusted on the CORP jump host (corp-keyjump), so
+  stealing it buys a password-less lateral hop inward with host-key checking
+  already disabled in the client config. Models the self-propagating SSH worm
+  observed on the Cowrie sensor (campaign C3): collect a key, hop to the next
+  host, repeat. The key is a deliberate lab honeytoken, not a real secret.
+technique_class: ssh-key-reuse
+substrate: container
+network_zone: dmz
+hostname: key-reuse
+ports:
+  - 22
+prereqs:
+  - edge-botnet
+  - ssh-weak
+enables:
+  - corp-keyjump
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{key-reuse-<rot>}"
+  placement: /home/ci/flag.txt
+  rotate_per_run: true
+scoring_hint: Credential Access / Lateral Movement
+evidence:
+  derived_from: "Cowrie honeypot capture, campaign C3 ed25519 key-plant worm (~/Projects/honeypot-osint/)"
+  success: >-
+    the private key is read from this host and reused to open a password-less SSH
+    session to corp-keyjump (stolen-key lateral movement).
+  signals:
+    - journal: foothold event technique=ssh-key-reuse host=key-reuse
+    - fsdiff: /home/ci/.ssh/id_ed25519 exfiltrated by the operator
+    - journal: lateral event src=key-reuse dst=corp-keyjump auth=public-key
+    - pcap: tcp/22 session from key-reuse (or attacker via relay) to corp-keyjump

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/will_cyber/Projects/keystone-range
+exec python3 -m keystone.run_control stop "$@"

@@ -1,0 +1,4 @@
+{
+  "start_script": "/home/will_cyber/Projects/lab-dashboard/bin/keystone-start-with-pi.sh",
+  "stop_script": "/home/will_cyber/Projects/lab-dashboard/bin/keystone-stop-with-pi.sh"
+}

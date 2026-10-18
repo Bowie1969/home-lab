@@ -1,0 +1,9 @@
+# portal-sqli — SQL-injectable login backed by sqlite3 (stdlib only).
+FROM docker.io/library/python:3.12-slim
+RUN useradd -m -u 1001 app && mkdir -p /app && chown app /app
+WORKDIR /app
+COPY app/server.py /app/server.py
+RUN echo "KEYSTONE{portal-sqli-PLACEHOLDER}" > /app/flag.txt && chown app:app /app/flag.txt && chmod 600 /app/flag.txt
+USER app
+EXPOSE 8081
+CMD ["python3", "/app/server.py"]

@@ -1,0 +1,68 @@
+id: drop01
+description: >-
+  Raspberry Pi 4 with two roles. INFRA mode (default): hosts the lab-local
+  Kimi API inference endpoint on :11434 that EvilKit hive instances on
+  compromised hosts call back to, so the hive keeps running when cloud
+  inference is slow or unavailable. DROP mode (when planted during a
+  physical-access exercise, e.g. "The Fitzroy Thursday"): USB Ethernet
+  gadget + HID injection + BLE jiggle + WiFi handshake capture + Responder
+  for NetNTLMv2 harvesting, with a dead-man timer that wipes LUKS if
+  operator contact is lost. Mode is chosen at boot; scripts/drop-mode/
+  builds the drop image.
+technique_class: physical-plant     # in drop mode this is a planted dropbox —
+                                    # a genuine, independent initial-access
+                                    # vector that never touches the DMZ
+substrate: physical
+network_zone: corp
+hostname: drop01
+ports:
+  - 11434                               # Kimi API (OpenAI-compatible), lab-local only
+prereqs: []
+enables:
+  - modelhub-pickle
+  - ntlm-relay-corp
+  - bmc-super
+  - win2025-smb
+  - samba-45
+  - ks-ws01
+  - win7-eternalblue
+scoring_hint: Infra
+evidence:
+  success: >-
+    hive instances on compromised hosts successfully reach drop01:11434 and
+    receive Kimi completions, journaled as hive_task_result events whose
+    `inference_endpoint` resolves to drop01's lab-local address.
+  signals:
+    - journal: hive_beacon from an instance that lists drop01 as its inference endpoint
+    - syslog: hEX forward log showing <corp-ip>:ephemeral -> drop01:11434
+  ip: "10.50.0.220"
+  mac: "98:fe:54:3f:b9:62"
+  tailnet_ip: "100.91.140.23 (operator reach from Parrot, not used by the hive)"
+  note: >-
+    PHYSICAL LAYOUT: Pi4 is single-homed, cables to the SG108E on a corp-VLAN
+    access port (p3). INFRA mode is the default boot; DROP mode is
+    selected by booting the drop image from scripts/drop-mode/ (bootstrap.sh),
+    which turns the Pi into the planted dropbox of the Fitzroy narrative
+    (USB gadget, HID, BLE, WiFi capture, Responder, dead-man wipe) instead of
+    the inference endpoint. Only one mode is ever active at a time.
+
+    OPERATION:
+      - Mac (mac-debian13) controls the Pi over SSH. Only the Mac starts /
+        stops the Kimi API service; the Pi exposes no admin ports to the
+        other lab segments.
+      - The Kimi API listens on :11434 (OpenAI-compatible). Hive instances
+        on compromised hosts call it with a short-lived bearer token the
+        primary EvilKit distributes.
+      - If the Pi is powered off or disconnected, hive instances fall back
+        to the primary's cloud inference; the hive degrades, not fails.
+      - In DROP mode the Pi runs entirely from the drop image (USB gadget
+        exposes a poisoned-Ethernet PoisonTap-style interface to the victim
+        laptop; the dead-man timer wipes LUKS on operator-contact loss; the
+        lab's hEX drops any non-corp egress from it).
+
+    FAIL-SAFES:
+      - No default route off the corp segment — the Pi cannot phone home
+        to the public internet from inside the lab.
+      - The Kimi API is bound to the corp VLAN interface only; a reachable
+        on-wire test from the attacker VLAN must drop at the hEX (keystone
+        policy: attacker -> corp is denied).

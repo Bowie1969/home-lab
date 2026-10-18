@@ -1,0 +1,24 @@
+[Unit]
+Description=Keystone Range dashboard — read-only live monitor (:8793)
+Documentation=file:///home/will_cyber/Projects/lab-dashboard/README.md
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/will_cyber/Projects/lab-dashboard
+ExecStart=/usr/bin/python3 /home/will_cyber/Projects/lab-dashboard/server.py --host 100.88.148.72 --port 8793 --additional-host 10.10.66.127 --additional-client 10.10.66.146
+Environment=EVILKIT_MESH_CONNECTION_FILE=/home/will_cyber/evilkit/variants/mesh/.evilkit-mesh/connection.json
+Environment=EVILKIT_MESH_TOKEN_FILE=/home/will_cyber/evilkit/variants/mesh/.evilkit-mesh/token
+Environment=EVILKIT_CLONE_DISPLAY_LOG=/home/will_cyber/.local/state/evilkit/clone-display.jsonl
+Environment=EVILKIT_CLONE_WINDOW_REGISTRY=/home/will_cyber/.local/state/evilkit/clone-display-windows.json
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+# Read-only telemetry viewer: it tails files under keystone-range/runs/, reads the
+# local EvilKit mesh hub's state over its Tailscale URL, and only when the user
+# clicks a button launches one of the three fixed scripts registered in config.json.
+
+[Install]
+WantedBy=default.target

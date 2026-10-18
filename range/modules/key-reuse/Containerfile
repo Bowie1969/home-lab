@@ -1,0 +1,41 @@
+# key-reuse — a DMZ CI/deploy box whose service account leaves a private SSH key
+# lying in its home directory. That key is also an authorized key on a CORP jump
+# host (corp-keyjump), so stealing it buys a password-less lateral hop inward.
+# This models the self-propagating SSH worm seen on the Cowrie sensor (campaign
+# C3): plant/collect a key, disable host-key checking, hop to the next host.
+#
+# The key here is a deliberate lab honeytoken (keys/id_ed25519), the same spirit
+# as the hardcoded passwords elsewhere in the range — not a real secret.
+FROM docker.io/library/debian:12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openssh-server openssh-client \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -m -s /bin/bash ci \
+ && echo 'ci:ci' | chpasswd \
+ && mkdir -p /run/sshd /etc/ssh/sshd_config.d /home/ci/.ssh \
+ && printf '%s\n' \
+      'PermitRootLogin no' \
+      'PasswordAuthentication yes' \
+      'KbdInteractiveAuthentication no' \
+      'AllowUsers ci' \
+      'AllowTcpForwarding yes' \
+      'X11Forwarding no' \
+      > /etc/ssh/sshd_config.d/keystone.conf \
+ && echo "KEYSTONE{key-reuse-PLACEHOLDER}" > /home/ci/flag.txt
+COPY keys/id_ed25519 /home/ci/.ssh/id_ed25519
+COPY keys/id_ed25519.pub /home/ci/.ssh/id_ed25519.pub
+# A hint the worm would read: where this key is trusted.
+RUN printf '%s\n' \
+      '# deploy key for the corp build jump host' \
+      'Host corp-keyjump' \
+      '  User svc-deploy' \
+      '  IdentityFile ~/.ssh/id_ed25519' \
+      '  StrictHostKeyChecking no' \
+      > /home/ci/.ssh/config \
+ && chown -R ci:ci /home/ci/.ssh /home/ci/flag.txt \
+ && chmod 700 /home/ci/.ssh \
+ && chmod 600 /home/ci/.ssh/id_ed25519 /home/ci/.ssh/config \
+ && chmod 640 /home/ci/flag.txt
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]

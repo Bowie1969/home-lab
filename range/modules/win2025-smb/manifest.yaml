@@ -1,0 +1,67 @@
+# Keystone module manifest — see MANIFEST_SCHEMA.md
+id: win2025-smb
+description: >-
+  Windows Server 2025 corp host left unpatched for a known SMB-side RCE class
+  (fill in the specific CVE in `vulnerability.cves` once the operator has
+  selected the exact patch state to pin). Replaces win7-eternalblue in the
+  2026-10-15 VM redesign: Server 2025 gives EvilKit a modern Windows target
+  with a current SMB stack while keeping the CORP lateral-movement path
+  intact. The guest must never have a route to the home LAN or the internet.
+technique_class: windows-smb-rce
+substrate: vm
+network_zone: corp
+hostname: win2025-smb
+ports:
+  - 445
+  - 3389
+prereqs:
+  - runner-escape
+  - drop01
+  - ks-ws01
+enables:
+  - ubuntu-dirtycow
+  - vault-keystone
+build:
+  vm_spec: cloud-init                # provisioned via keystone.vm on the brain
+  context: .
+flag:
+  value: "KEYSTONE{win2025-smb-system-<rot>}"
+  placement: "C:\\Keystone\\flag.txt"
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-win2025-2f8c19
+  placement: "C:\\Keystone\\vault-break-glass.txt"
+  note: SYSTEM-only break-glass vault credential readable after the pinned SMB RCE.
+scoring_hint: Lateral Movement
+# vulnerability section intentionally omitted until the owner pins the exact
+# CVE + superseding KB they want to leave unpatched. The manifest validator
+# rejects an empty cves list, so leaving the block out is correct until
+# provision/prepare-target.ps1's $TargetKB is set and a real advisory URL
+# is in hand. Add the block back then with cves/affected/fixed_in/
+# verification/source populated (see MANIFEST_SCHEMA.md).
+evidence:
+  success: >-
+    unauthenticated SMB exploitation (or an authenticated-with-leaked-creds
+    SMB path from the corp pivot) yields NT AUTHORITY\\SYSTEM and the
+    rotated flag is read from C:\\Keystone\\flag.txt.
+  signals:
+    - pcap: SMB traffic to win2025-smb:445 from a compromised CORP host
+    - journal: host_compromised technique=windows-smb-rce host=win2025-smb
+    - fsdiff: marker written under C:\\Keystone after SYSTEM access
+  host: "brain (willshomelab, 192.168.0.240)"
+  vmid: 985
+  ip: "10.50.0.25 (real, on brain bridge vmbr50 CORP)"
+  resources:
+    cores: 2
+    memory_mb: 4096
+    disk_gb: 64
+  note: >-
+    BYO licensed Windows Server 2025 installation media or an owner-created
+    qcow2 — Keystone does not download or redistribute Windows images. The
+    2026-10-14 task-2 CPU-flag/repair-loop blocker is resolved as part of
+    this build by setting --cpu host (or an explicit flag set with
+    hv-enlightenments disabled when hv_passthrough triggers the repair
+    loop). Validation and the clean snapshot are planted by provision/
+    inside the guest; set runtime.json ready=true only after Get-HotFix
+    confirms the chosen KB is absent and provision/prepare-target.ps1
+    reports health.

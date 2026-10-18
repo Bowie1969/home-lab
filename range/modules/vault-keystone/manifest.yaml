@@ -1,0 +1,66 @@
+id: vault-keystone
+description: >-
+  THE CROWN JEWEL. Holds the segregated Nordhaven Capital client deal-book/
+  portfolio vault data (Operation Tidewater) and the Keystone master signing
+  key. Dedicated Keystone LXC on the brain (Proxmox, DATA tier), reachable
+  ONLY from the corp zone, so it can only be touched after a full pivot
+  (attacker -> dmz -> corp -> data) OR the equivalent pivot through the
+  planted dropbox (drop01 -> corp -> data). No initial-access vector and no
+  DMZ/dropbox host can reach it directly. Authentication is multi-branch:
+  the vault accepts ONE credential per deep corp branch (declared as
+  ``vault_token`` in each branch module's manifest), so completing ANY of
+  ~10 independent branches — the classic intranet service-token chain, AD
+  Domain Admin, kernel privesc, the AI supply chain, the BMC, or any
+  known-CVE VM/physical target — reaches the crown. Each token lives in a
+  root/DA/SYSTEM-only location on its branch, so none of them short-cut the
+  difficulty of the branch itself.
+technique_class: crown-store
+substrate: lxc
+network_zone: data
+hostname: vault-keystone
+ports:
+  - 8200
+# OR-semantics: the crown is unlocked by exactly the deep branches that carry
+# a vault credential (the ``vault_token`` holders). Compromising ANY of them —
+# whether the corp foothold came from the external chain or the dropbox —
+# yields a token the vault accepts, so each branch is a complete path.
+# runner-escape / ks-ws01 / ks-files01 are deliberately absent: they establish
+# reachability and creds toward the branches, but do not themselves yield a
+# vault credential (tests pin this list to the vault_token set).
+prereqs:
+  - dc-roast
+  - kiosk-kernel
+  - ks-intranet01
+  - mac-debian13
+  - modelhub-pickle
+  - bmc-super
+  - ubuntu-dirtycow
+  - samba-45
+  - win7-eternalblue
+  - win2025-smb
+enables: []
+build: {}
+flag:
+  value: "KEYSTONE{CROWN-master-signing-key-<rot>}"
+  placement: /vault/secrets/master.key
+  rotate_per_run: true
+scoring_hint: Crown Exfiltration
+evidence:
+  success: >-
+    read the master signing key from the data-tier vault and exfiltrated it back
+    out through the compromised pivot chain.
+  signals:
+    - pcap: a session from a compromised corp host into 10.80.30.0/24:8200
+    - pcap: crown bytes transiting data -> corp -> dmz -> attacker
+    - journal: exfil event referencing the crown flag value
+  ip: "10.50.1.14 (real, on brain bridge vmbr51 DATA VLAN 51)"
+  vmid: 953
+  host: "brain (willshomelab, 192.168.0.240)"
+  note: >-
+    Per the 2026-10-15 Keystone VM redesign, the vault moves onto its own
+    VLAN (51) with its own subnet (10.50.1.0/24) so corp and data are
+    separated at both L2 and L3 — not just by an hEX ACL. Still on the brain
+    (uplink-less bridge vmbr51), still reachable only from CORP via the hEX
+    corp->data allow on tcp/8200. Was previously an LXC on vmbr50/10.50.0.14;
+    this redesign promotes it to a VM (substrate stays `lxc` in the manifest
+    until the VM provisioner lands, then flips to `vm`).

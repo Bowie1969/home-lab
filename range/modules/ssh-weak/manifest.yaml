@@ -1,0 +1,36 @@
+id: ssh-weak
+description: >-
+  A bastion/SSH service with a guessable password on a low-priv account.
+  Local SSH forwarding is the intended relay from attacker through DMZ into CORP;
+  the operator must author the tunnel script rather than receiving a helper.
+technique_class: weak-cred-ssh
+substrate: container
+network_zone: dmz
+hostname: ssh-weak
+ports:
+  - 22
+prereqs: []
+enables:
+  - cron-root
+  - kiosk-kernel
+  - ks-ws01
+  - key-reuse
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{weak-ssh-<rot>}"
+  placement: /home/deploy/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.119 (real, macvlan on dmz-svc VM 972, brain vmbr9 VLAN 9)"
+  host: brain dmz-svc (VM 972)
+  success: >-
+    interactive shell as the low-priv 'deploy' user via a guessed password, then
+    an operator-authored loopback-only SSH local-forward script relays to CORP.
+  signals:
+    - journal: foothold event technique=weak-cred-ssh host=ssh-weak
+    - pcap: tcp/22 session from attacker to ssh-weak
+    - fsdiff: executable operator-authored tunnel script added on attacker
+    - journal: pivot event relay=ssh-weak dst=<corp host> technique=ssh-local-forward

@@ -1,0 +1,28 @@
+# corp-keyjump — the CORP-tier build/jump host that trusts the deploy key left on
+# the DMZ key-reuse box. Key-only: there is no password to guess, so the only way
+# in is the stolen key — which is exactly the point. Landing here is a CORP
+# foothold and the start of the deeper pivot toward DATA.
+FROM docker.io/library/debian:12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openssh-server \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -m -s /bin/bash svc-deploy \
+ && mkdir -p /run/sshd /etc/ssh/sshd_config.d /home/svc-deploy/.ssh \
+ && printf '%s\n' \
+      'PermitRootLogin no' \
+      'PasswordAuthentication no' \
+      'PubkeyAuthentication yes' \
+      'KbdInteractiveAuthentication no' \
+      'AllowUsers svc-deploy' \
+      'AllowTcpForwarding yes' \
+      'X11Forwarding no' \
+      > /etc/ssh/sshd_config.d/keystone.conf \
+ && echo "KEYSTONE{corp-keyjump-PLACEHOLDER}" > /home/svc-deploy/flag.txt
+COPY keys/authorized_key.pub /home/svc-deploy/.ssh/authorized_keys
+RUN chown -R svc-deploy:svc-deploy /home/svc-deploy/.ssh /home/svc-deploy/flag.txt \
+ && chmod 700 /home/svc-deploy/.ssh \
+ && chmod 600 /home/svc-deploy/.ssh/authorized_keys \
+ && chmod 640 /home/svc-deploy/flag.txt
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D", "-e"]

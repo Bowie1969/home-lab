@@ -1,0 +1,5 @@
+{
+  "ready": false,
+  "baseline_snapshot": "clean",
+  "health": "smbd 4.5.9; anonymous upload to drop share; TCP 139/445 open; QEMU guest agent responding"
+}

@@ -1,0 +1,38 @@
+{"t": 0.0, "host": "operator", "event": "node_reachable", "node": "operator", "evidence": "Operator workstation online, outside the firm."}
+{"t": 1.5, "host": "operator", "event": "edge_discovered", "edge": {"src": "operator", "dst": "office-fw"}, "evidence": "Recon: Nordhaven's public IP and office gateway located."}
+{"t": 3.0, "host": "office-fw", "event": "node_discovered", "node": "office-fw", "evidence": "Office firewall fingerprinted; only 443 forwarded inward."}
+{"t": 5.0, "host": "office-fw", "event": "node_reachable", "node": "office-fw", "evidence": "Gateway reachable; portal responds on 443."}
+{"t": 7.0, "host": "operator", "event": "edge_discovered", "edge": {"src": "office-fw", "dst": "srv01"}, "evidence": "Port-forward maps 443 to NORD-SRV01 client portal."}
+{"t": 8.5, "host": "srv01", "event": "node_discovered", "node": "srv01", "evidence": "Client portal / webmail identified on NORD-SRV01 (hardened)."}
+{"t": 11.0, "host": "operator", "event": "edge_discovered", "edge": {"src": "office-fw", "dst": "junior"}, "evidence": "Phishing lure delivered to junior staff; laptop called back."}
+{"t": 13.0, "host": "junior", "event": "node_discovered", "node": "junior", "evidence": "NORD-JUNIOR Linux laptop fingerprinted (unpatched)."}
+{"t": 15.0, "host": "junior", "event": "node_reachable", "node": "junior", "evidence": "Beacon established from junior laptop."}
+{"t": 17.0, "host": "junior", "event": "node_in_progress", "node": "junior", "evidence": "Escalating on the unpatched laptop."}
+{"t": 20.0, "host": "junior", "event": "node_solved", "node": "junior", "evidence": "Foothold on NORD-JUNIOR; local root."}
+{"t": 20.5, "host": "junior", "event": "flag_captured", "flag": "foothold-junior", "evidence": "FLAG foothold-junior captured."}
+{"t": 22.0, "host": "junior", "event": "edge_discovered", "edge": {"src": "junior", "dst": "srv01"}, "evidence": "Office LAN mapped: NORD-SRV01 domain visible on 10.50.0.0/24."}
+{"t": 23.5, "host": "junior", "event": "edge_discovered", "edge": {"src": "junior", "dst": "acct"}, "evidence": "Reused staff password shared with the accountant PC."}
+{"t": 25.0, "host": "junior", "event": "flag_captured", "flag": "office-recon", "evidence": "FLAG office-recon captured; estate enumerated."}
+{"t": 27.0, "host": "acct", "event": "node_discovered", "node": "acct", "evidence": "NORD-ACCT fingerprinted; weak RDP exposed."}
+{"t": 29.0, "host": "acct", "event": "node_reachable", "node": "acct", "evidence": "SMB/RDP reachable from junior laptop."}
+{"t": 31.0, "host": "acct", "event": "node_in_progress", "node": "acct", "evidence": "Reusing junior's password against NORD-ACCT."}
+{"t": 33.0, "host": "operator", "event": "edge_used", "edge": {"src": "junior", "dst": "acct"}, "evidence": "Lateral move junior -> accountant."}
+{"t": 34.0, "host": "acct", "event": "node_solved", "node": "acct", "evidence": "Shared local-admin password works; NORD-ACCT owned."}
+{"t": 34.5, "host": "acct", "event": "flag_captured", "flag": "lateral-acct", "evidence": "FLAG lateral-acct captured."}
+{"t": 36.0, "host": "acct", "event": "edge_discovered", "edge": {"src": "acct", "dst": "owner"}, "evidence": "Owner's credentials cached in a shared finance document."}
+{"t": 38.0, "host": "owner", "event": "node_discovered", "node": "owner", "evidence": "NORD-OWNER fingerprinted (principal adviser)."}
+{"t": 40.0, "host": "owner", "event": "node_reachable", "node": "owner", "evidence": "Reachable on the office LAN."}
+{"t": 41.0, "host": "recep", "event": "node_discovered", "node": "recep", "evidence": "NORD-RECEP discovered — reception webmail session (alternate route)."}
+{"t": 42.0, "host": "it", "event": "node_discovered", "node": "it", "evidence": "NORD-IT contractor box discovered — ssh key reuse (insider route)."}
+{"t": 43.0, "host": "owner", "event": "node_in_progress", "node": "owner", "evidence": "Looting browser-saved passwords on the owner's PC."}
+{"t": 45.0, "host": "operator", "event": "edge_used", "edge": {"src": "acct", "dst": "owner"}, "evidence": "Lateral move accountant -> owner."}
+{"t": 46.0, "host": "owner", "event": "node_solved", "node": "owner", "evidence": "Owner PC owned; cached domain credentials recovered."}
+{"t": 46.5, "host": "owner", "event": "flag_captured", "flag": "creds-owner", "evidence": "FLAG creds-owner captured."}
+{"t": 48.0, "host": "owner", "event": "edge_discovered", "edge": {"src": "owner", "dst": "srv01"}, "evidence": "Cached domain creds authenticate to NORD-SRV01."}
+{"t": 50.0, "host": "srv01", "event": "node_reachable", "node": "srv01", "evidence": "LDAP/Kerberos/SMB reachable with owner's domain account."}
+{"t": 52.0, "host": "srv01", "event": "node_in_progress", "node": "srv01", "evidence": "Kerberoasting a weak service account on the DC."}
+{"t": 55.0, "host": "operator", "event": "edge_used", "edge": {"src": "owner", "dst": "srv01"}, "evidence": "Authenticated to NORD-SRV01 with a cracked service ticket."}
+{"t": 57.0, "host": "srv01", "event": "node_solved", "node": "srv01", "evidence": "Domain admin obtained on NORD-SRV01."}
+{"t": 57.5, "host": "srv01", "event": "flag_captured", "flag": "dc-takeover", "evidence": "FLAG dc-takeover captured."}
+{"t": 60.0, "host": "srv01", "event": "node_data_read", "node": "srv01", "evidence": "Crown read: client trust-account ledger + Nordhaven deal book exfiltrated."}
+{"t": 60.5, "host": "srv01", "event": "flag_captured", "flag": "crown-exfil", "evidence": "FLAG crown-exfil captured. Run complete: 6/6."}

@@ -1,0 +1,11 @@
+# ntlm-relay-corp — noisy workstation stub that spills NetNTLMv2 hashes.
+FROM docker.io/library/python:3.12-slim
+
+RUN useradd -m -u 1001 dreyes && mkdir -p /app && chown -R dreyes:dreyes /app
+WORKDIR /app
+COPY app/server.py /app/server.py
+RUN echo "KEYSTONE{ntlm-harvest-PLACEHOLDER}" > /home/dreyes/flag.txt \
+ && chown dreyes:dreyes /home/dreyes/flag.txt && chmod 600 /home/dreyes/flag.txt
+
+USER dreyes
+CMD ["python3", "/app/server.py"]

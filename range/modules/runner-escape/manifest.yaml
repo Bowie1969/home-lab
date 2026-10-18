@@ -1,0 +1,49 @@
+id: runner-escape
+description: >-
+  A CI "runner" container started with an over-mounted host path / excess
+  capabilities; breaking out lands code on the container host, which is
+  dual-homed into the corp zone (container-escape -> pivot).
+technique_class: container-escape
+substrate: container
+network_zone: dmz
+hostname: runner-escape
+ports: []
+# OR-semantics: any DMZ code-exec foothold can reach the runner to escape it.
+prereqs:
+  - edge-upload
+  - portal-sqli
+  - gitleak-api
+  - render-ssti
+  - token-jwt
+  - meta-ssrf
+  - cache-open
+  - cron-root
+enables:
+  - dc-roast
+  - kiosk-kernel
+  - ks-ws01
+  - samba-45
+  - bmc-super
+  - cron-root
+  - modelhub-pickle
+  - ntlm-relay-corp
+  - win2025-smb
+  - win7-eternalblue
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{escape-host-<rot>}"
+  placement: /hostfs/root/flag.txt
+  rotate_per_run: true
+scoring_hint: Pivot/Relay
+evidence:
+  ip: "10.99.50.122 (real, macvlan on dmz-runner VM 973, brain vmbr9 VLAN 9)"
+  host: brain dmz-runner (VM 973)
+  success: >-
+    escaped the runner to the host and reached the corp network from there
+    (the bridge that makes dmz->corp pivoting possible).
+  signals:
+    - fsdiff: added file on the container host (outside the runner rootfs)
+    - pcap: traffic from runner-escape host IP into the corp subnet
+    - journal: pivot event host=runner-escape dst=<corp host>

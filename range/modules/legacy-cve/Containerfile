@@ -1,0 +1,13 @@
+# legacy-cve — image-math service with Pillow pinned at 8.3.2, vulnerable to
+# CVE-2022-22817 (PIL.ImageMath.eval code execution, fixed in 9.0.0). The
+# version is frozen on purpose so the public exploit stays reproducible.
+FROM docker.io/library/python:3.9-slim
+RUN pip install --no-cache-dir pillow==8.3.2
+RUN useradd -m -u 1001 app && mkdir -p /opt/app
+WORKDIR /opt/app
+COPY app/server.py /opt/app/server.py
+RUN echo "KEYSTONE{pinned-cve-PLACEHOLDER}" > /opt/app/flag.txt \
+ && chown app:app /opt/app/flag.txt && chmod 600 /opt/app/flag.txt
+USER app
+EXPOSE 8082
+CMD ["python3", "/opt/app/server.py"]

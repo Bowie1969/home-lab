@@ -1,0 +1,27 @@
+{
+  "10.80.10.22": {
+    "added": [
+      "/var/www/uploads/shell.py",
+      "/etc/cron.d/healthcheck"
+    ],
+    "modified": []
+  },
+  "10.80.10.28": {
+    "added": [
+      "/hostfs/tmp/.relay"
+    ],
+    "modified": []
+  },
+  "10.80.20.20": {
+    "added": [
+      "/tmp/implant.elf"
+    ],
+    "modified": []
+  },
+  "10.80.30.20": {
+    "added": [
+      "/vault/secrets/.read-marker"
+    ],
+    "modified": []
+  }
+}

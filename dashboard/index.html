@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
+<title>Keystone Range Monitor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffffff' stroke='%232F6FED' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%232F6FED'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=20261018-pivots">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">K</span>
+      <div>
+        <strong>Keystone Range Monitor</strong>
+        <small>Read-only telemetry viewer — no actions taken against any target</small>
+      </div>
+    </div>
+    <div class="top-right">
+      <span id="mode-badge" class="badge badge-stale">NO ACTIVE RUN</span>
+      <span id="connection" class="connection" role="status"><i></i>Connecting…</span>
+      <button id="sound-toggle" class="icon-button sound-toggle" type="button" title="Enable event sounds" aria-label="Enable event sounds" aria-pressed="false">🔇</button>
+      <button id="fullscreen" class="icon-button" type="button" title="Toggle fullscreen (kiosk)">⛶</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="canvas-wrap">
+      <section class="focus-strip" aria-label="Red-team engagement status">
+        <article class="focus-card focus-current-card">
+          <span class="focus-label">Active operator location</span>
+          <div class="focus-value"><i class="focus-beacon"></i><strong id="focus-current-host">Not reported</strong></div>
+          <small id="focus-current-detail">Waiting for an active run</small>
+        </article>
+        <article class="focus-card focus-compromised-card">
+          <span class="focus-label">Already compromised</span>
+          <div class="focus-value"><i class="focus-beacon"></i><strong id="focus-compromised-count">0 confirmed</strong></div>
+          <div id="focus-compromised-hosts" class="focus-host-list">No confirmed hosts</div>
+        </article>
+        <article class="focus-card focus-exfil-card">
+          <span class="focus-label">Exfiltrating from</span>
+          <div class="focus-value"><i class="focus-beacon"></i><strong id="focus-exfil-host">Not reported</strong></div>
+          <small id="focus-exfil-detail">No active exfiltration reported</small>
+        </article>
+      </section>
+      <section class="clone-strip" aria-label="EvilKit clone activity">
+        <div class="clone-strip-heading">
+          <div><strong>EvilKit clones</strong><span id="clone-summary">Checking mesh…</span></div>
+          <span id="clone-hub-state" class="clone-hub-state">—</span>
+        </div>
+        <div id="clone-list" class="clone-list">
+          <div class="clone-empty">Waiting for clone telemetry…</div>
+        </div>
+      </section>
+      <div class="canvas-toolbar">
+        <div>Green: running · blue: reachable · dark red: compromised · bright red pulse: EvilKit active</div>
+        <div class="canvas-hint">Drag to reposition · click a node for details · scroll to zoom</div>
+      </div>
+      <section id="segment-strip" class="segment-strip" aria-label="Physical VLAN segmentation"></section>
+      <svg id="graph" viewBox="0 0 1800 760" preserveAspectRatio="xMidYMid meet">
+        <g id="viewport">
+          <g id="edge-layer"></g>
+          <g id="node-layer"></g>
+        </g>
+      </svg>
+    </section>
+
+    <div class="widget-bar" id="widget-layer">
+      <section class="widget widget-clock" data-widget="clock">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <div class="widget-icon">&#9201;</div>
+        <div class="widget-body">
+          <span class="widget-label">Elapsed</span>
+          <strong id="run-clock">00:00:00</strong>
+        </div>
+      </section>
+
+      <section class="widget widget-score" data-widget="score">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <div class="widget-icon">&#9670;</div>
+        <div class="widget-body">
+          <span class="widget-label">Score</span>
+          <strong id="run-score">—</strong>
+          <span id="run-score-max" class="widget-dim">/ 129</span>
+        </div>
+        <div id="score-bar" class="score-bar"><div id="score-fill" class="score-fill"></div></div>
+      </section>
+
+      <section class="widget widget-run" data-widget="run">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <div class="widget-body">
+          <span class="widget-label">Run <span id="run-state-pill" class="pill pill-idle">—</span></span>
+          <span class="widget-detail"><span id="run-range">—</span> · <span id="run-model">—</span></span>
+          <span class="widget-detail widget-dim" id="run-id" title="Click to copy" class="copyable">—</span>
+        </div>
+        <div id="operator-row" hidden><span class="widget-label">Operators</span><span id="operator-list" class="operator-list"></span></div>
+        <p id="run-step" class="run-step">Waiting for telemetry…</p>
+        <span class="widget-detail widget-dim">Started <span id="run-started">—</span></span>
+        <div class="flag-row" id="flag-row"></div>
+      </section>
+
+      <section class="widget widget-attack-features" data-widget="attack-features" aria-label="EvilKit attack features">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <div class="attack-feature-heading">
+          <span class="widget-label">EvilKit attack features</span>
+          <span id="attack-engine" class="pill pill-idle">WAITING</span>
+        </div>
+        <div id="attack-feature-list" class="attack-feature-list"></div>
+        <span id="attack-feature-detail" class="widget-detail widget-dim">No attack activity observed</span>
+      </section>
+
+      <section class="widget widget-controls" data-widget="controls">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <span class="widget-label">Controls</span>
+        <div class="control-buttons">
+          <button id="ctrl-start" class="ctrl-btn" type="button" data-action="start">Start</button>
+          <button id="ctrl-reset" class="ctrl-btn" type="button" data-action="reset">Reset</button>
+          <button id="ctrl-stop" class="ctrl-btn ctrl-danger" type="button" data-action="stop">Stop</button>
+        </div>
+        <p id="control-status" class="control-status"></p>
+        <span id="keystone-root-path" hidden>~/Projects/keystone-range</span>
+      </section>
+
+      <section class="widget widget-legend" data-widget="legend">
+        <span class="widget-grip" title="Drag to move · double-click to reset layout" aria-hidden="true">⠿</span>
+        <details class="legend-details">
+          <summary class="widget-label">Legend</summary>
+          <div class="legend-body">
+            <div class="legend-columns">
+              <div class="legend-group">
+                <h3>Target state</h3>
+                <div class="legend-swatches" id="legend-status"></div>
+              </div>
+              <div class="legend-group">
+                <h3>Activity ring</h3>
+                <div class="legend-swatches">
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #F59E0B"></span><span>under attack</span></div>
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #F97316"></span><span>EvilKit working</span></div>
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #EF4444"></span><span>EvilKit active here</span></div>
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #0F9F95"></span><span>clone connected</span></div>
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #d1a52e"></span><span>exfiltrating</span></div>
+                  <div class="swatch-row"><span class="swatch-dot" style="background:transparent;border:2px solid #14B8A6"></span><span>defender containment / watch</span></div>
+                </div>
+              </div>
+              <div class="legend-group">
+                <h3>Device type</h3>
+                <div class="legend-swatches" id="legend-type"></div>
+              </div>
+              <div class="legend-group">
+                <h3>Link kind</h3>
+                <div class="legend-swatches" id="legend-edge-kind"></div>
+              </div>
+              <div class="legend-group" id="legend-operator-group" hidden>
+                <h3>Operator</h3>
+                <div class="legend-swatches" id="legend-operator"></div>
+              </div>
+              <div class="legend-group" id="legend-data-group" hidden>
+                <h3>Data type</h3>
+                <div class="legend-swatches" id="legend-data"></div>
+              </div>
+              <div class="legend-group" id="legend-tool-group" hidden>
+                <h3>MCP tool</h3>
+                <div class="legend-swatches" id="legend-tool"></div>
+              </div>
+              <div class="legend-group">
+                <h3>Link state</h3>
+                <div class="legend-swatches" id="legend-edge-state"></div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <aside class="sidebar-panels">
+      <section class="card inspector-card">
+        <header><h2>Inspector</h2></header>
+        <div id="inspector">
+          <p class="empty">Select a node to inspect it.</p>
+        </div>
+      </section>
+
+      <section class="card events-card">
+        <header>
+          <h2>Event stream</h2>
+          <span id="event-rate" class="pill pill-idle" title="Events per minute (last 60s)">0/min</span>
+          <span id="event-count" class="pill pill-idle">0</span>
+        </header>
+        <div class="event-toolbar">
+          <input id="event-filter" type="search" placeholder="Filter events (host, type, evidence)… press /" aria-label="Filter events">
+          <button id="event-download" class="icon-button" type="button" title="Download current events as JSON">⬇</button>
+        </div>
+        <ol id="events" class="event-list"><li class="empty">Connecting…</li></ol>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="page-footer">
+    <span>Read-only monitoring · performs no security actions</span>
+    <span id="footer-updated">—</span>
+  </footer>
+
+  <script src="app.js?v=20261018-pivots"></script>
+</body>
+</html>

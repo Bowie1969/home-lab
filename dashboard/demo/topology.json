@@ -1,0 +1,107 @@
+{
+  "range": "nordhaven-demo",
+  "title": "Nordhaven Capital — sample estate (no live run connected)",
+  "zones": [
+    { "id": "attack", "label": "ATTACKER · external", "policy": "operator, outside the firm" },
+    { "id": "perimeter", "label": "PERIMETER", "policy": "office firewall / gateway" },
+    { "id": "office", "label": "NORDHAVEN OFFICE · 10.50.0.0/24", "policy": "single flat LAN — staff → server on 445/88/389, portal on 443" }
+  ],
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "operator",
+      "type": "operator",
+      "zone": "attack",
+      "address": "10.50.66.10",
+      "position": [6, 50],
+      "stores": ["operator toolkit"]
+    },
+    {
+      "id": "office-fw",
+      "label": "office-fw",
+      "type": "router",
+      "zone": "perimeter",
+      "address": "10.50.0.1",
+      "host": "office gateway · only 443 (portal) exposed outward",
+      "position": [20, 50],
+      "stores": ["NAT / port-forward to portal", "firewall rules", "management creds"]
+    },
+    {
+      "id": "srv01",
+      "label": "NORD-SRV01",
+      "type": "server",
+      "zone": "office",
+      "address": "10.50.0.10",
+      "host": "Windows Server 2022 · AD DC + file shares + client portal/webmail",
+      "position": [80, 50],
+      "stores": [
+        "crown: client trust-account ledger",
+        "crown: Nordhaven deal book",
+        "AD domain NORDHAVEN.LOCAL",
+        "file share \\\\NORD-SRV01\\clients",
+        "client portal + webmail"
+      ]
+    },
+    {
+      "id": "owner",
+      "label": "NORD-OWNER",
+      "type": "workstation",
+      "zone": "office",
+      "address": "10.50.0.21",
+      "host": "Windows 11 · owner / principal adviser",
+      "position": [62, 44],
+      "stores": ["local admin", "browser-saved passwords", "cached domain credentials", "VPN + portal creds"]
+    },
+    {
+      "id": "acct",
+      "label": "NORD-ACCT",
+      "type": "workstation",
+      "zone": "office",
+      "address": "10.50.0.22",
+      "host": "Windows 11 · accountant",
+      "position": [50, 64],
+      "stores": ["tax / client finance files", "documents with embedded creds", "weak RDP"]
+    },
+    {
+      "id": "recep",
+      "label": "NORD-RECEP",
+      "type": "workstation",
+      "zone": "office",
+      "address": "10.50.0.23",
+      "host": "Windows 11 · office manager / reception",
+      "position": [40, 30],
+      "stores": ["reception webmail session", "default printer/admin creds", "shared calendar"]
+    },
+    {
+      "id": "junior",
+      "label": "NORD-JUNIOR",
+      "type": "workstation",
+      "zone": "office",
+      "address": "10.50.0.24",
+      "host": "Linux laptop · junior staff (softest entry)",
+      "position": [38, 74],
+      "stores": ["personal browsing", "unpatched laptop", "reused staff password"]
+    },
+    {
+      "id": "it",
+      "label": "NORD-IT",
+      "type": "workstation",
+      "zone": "office",
+      "address": "10.50.0.31",
+      "host": "Linux · IT contractor box (insider route)",
+      "position": [52, 22],
+      "stores": ["ssh keys to the server", "sudo misconfig", "backup scripts"]
+    }
+  ],
+  "edges": [
+    { "src": "operator", "dst": "office-fw", "kind": "network", "state": "unknown", "mcp_tool": "mcp.shell", "data_type": "command", "direction": "forward" },
+    { "src": "office-fw", "dst": "srv01", "kind": "network", "state": "unknown", "mcp_tool": "mcp.browser", "data_type": "telemetry", "direction": "reverse" },
+    { "src": "office-fw", "dst": "junior", "kind": "network", "state": "unknown" },
+    { "src": "junior", "dst": "acct", "kind": "trust", "state": "unknown" },
+    { "src": "acct", "dst": "owner", "kind": "trust", "state": "unknown" },
+    { "src": "owner", "dst": "srv01", "kind": "trust", "state": "unknown" },
+    { "src": "recep", "dst": "srv01", "kind": "trust", "state": "unknown" },
+    { "src": "it", "dst": "srv01", "kind": "trust", "state": "unknown" },
+    { "src": "junior", "dst": "srv01", "kind": "trust", "state": "unknown" }
+  ]
+}

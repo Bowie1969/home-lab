@@ -1,0 +1,31 @@
+id: gitleak-api
+description: >-
+  Web root exposes a .git directory; the history contains a committed-then-
+  "removed" API key that still authorises the internal API (leaked secret).
+technique_class: leaked-apikey
+substrate: container
+network_zone: dmz
+hostname: gitleak-api
+ports:
+  - 8083
+prereqs: []
+enables:
+  - meta-ssrf
+  - runner-escape
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{leaked-key-<rot>}"
+  placement: /app/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.115 (real, macvlan on dmz-web-b VM 971, brain vmbr9 VLAN 9)"
+  host: brain dmz-web-b (VM 971)
+  success: >-
+    recovered the API key from exposed git history and used it to reach the
+    authenticated internal API.
+  signals:
+    - journal: foothold event technique=leaked-apikey host=gitleak-api

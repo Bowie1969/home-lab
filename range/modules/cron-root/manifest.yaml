@@ -1,0 +1,35 @@
+id: cron-root
+description: >-
+  A world-writable script invoked by a root cron job on a DMZ foothold host:
+  local privilege escalation to root (writable-cron-local).
+technique_class: writable-cron-local
+substrate: container
+network_zone: dmz
+hostname: cron-root
+ports: []
+# OR-semantics: any of these footholds gives the local shell needed to abuse cron.
+prereqs:
+  - edge-upload
+  - legacy-cve
+  - ssh-weak
+  - runner-escape
+enables:
+  - runner-escape
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{cron-root-<rot>}"
+  placement: /root/flag.txt
+  rotate_per_run: true
+scoring_hint: Persistence
+evidence:
+  ip: "10.99.50.121 (real, macvlan on dmz-svc VM 972, brain vmbr9 VLAN 9)"
+  host: brain dmz-svc (VM 972)
+  success: >-
+    gained root via the writable cron script (read /root/flag.txt), and the
+    script modification itself is a persistence foothold.
+  signals:
+    - fsdiff: modified /usr/local/bin/healthcheck.sh or added /etc/cron.* entry
+    - journal: privesc event technique=writable-cron-local host=cron-root

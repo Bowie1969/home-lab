@@ -1,0 +1,22 @@
+# gitleak-api — web root leaks its own .git history containing a live API key.
+FROM docker.io/library/python:3.12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+RUN useradd -m -u 1001 app && mkdir -p /app/webroot
+WORKDIR /app
+COPY app/ /app/
+RUN cp /app/index.html /app/webroot/index.html \
+ && cd /app/webroot \
+ && git init -q \
+ && git config user.email ci@keystone.local \
+ && git config user.name ci \
+ && printf 'API_KEY = "ks_live_7d3f9a2c81e4"\n' > config.py \
+ && git add config.py && git commit -q -m "add api config" \
+ && git rm -q config.py && git commit -q -m "remove committed key (rotated)" \
+ && echo "ks_live_7d3f9a2c81e4" > /app/accepted_key \
+ && echo "KEYSTONE{leaked-key-PLACEHOLDER}" > /app/flag.txt \
+ && chown -R app:app /app && chmod 600 /app/flag.txt /app/accepted_key
+USER app
+EXPOSE 8083
+CMD ["python3", "/app/server.py"]

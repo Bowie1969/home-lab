@@ -1,0 +1,36 @@
+<!--
+  libvirt/QEMU domain definition for the Keystone AD domain controller.
+  Brought up on the Parrot host with:  virsh define domain.xml && virsh start dc-roast
+  The disk is built once from a Windows Server eval ISO + provision/autounattend.xml,
+  then snapshotted clean; reset.sh reverts to the clean snapshot and re-stamps the flag.
+
+  Networking: attaches to the libvirt bridge 'keystone-corp' (10.80.20.0/24). The
+  generator's vms.json pins the IP; a static lease is set on that bridge.
+-->
+<domain type="kvm">
+  <name>dc-roast</name>
+  <memory unit="GiB">4</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/><hyperv><relaxed state="on"/></hyperv></features>
+  <cpu mode="host-passthrough"/>
+  <devices>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/keystone/dc-roast.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <interface type="bridge">
+      <!-- bound to the generated corp bridge; static IP from vms.json -->
+      <source bridge="keystone-corp"/>
+      <model type="virtio"/>
+    </interface>
+    <graphics type="vnc" port="-1" listen="127.0.0.1"/>
+    <channel type="unix">
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+  </devices>
+</domain>

@@ -1,0 +1,70 @@
+id: dc-roast
+description: >-
+  Windows Server domain controller for keystone.local. REUSED, not built: this
+  is the brain's existing `dc01` VM (Proxmox VMID 930), per the hybrid
+  expansion decision to share the one real AD across the whole estate rather
+  than build a second one. Real VM, not a container: Kerberos behaviour cannot
+  be faithfully faked in one.
+technique_class: ad-kerberos
+substrate: remote-vm
+network_zone: corp
+hostname: dc01
+ports:
+  - 88      # kerberos
+  - 389     # ldap
+  - 445     # smb
+  - 3268    # global catalog
+# OR semantics: ANY listed prereq unlocks this — the external DMZ->CORP pivot
+# (runner-escape/share-anon/portal-sqli) and the planted-dropbox CORP tier
+# (ks-ws01/ks-files01/ks-intranet01) are independent, parallel ways in.
+prereqs:
+  - runner-escape
+  - share-anon
+  - portal-sqli
+  - ks-ws01
+  - ks-files01
+  - ks-intranet01
+  - ntlm-relay-corp
+enables:
+  - vault-keystone
+  - mac-debian13
+build: {}
+flag:
+  value: "KEYSTONE{domain-admin-<rot>}"
+  placement: "C:\\Users\\Administrator\\Desktop\\flag.txt"
+  rotate_per_run: true
+vault_token:
+  value: ks-vault-da-3f9a6c
+  placement: "C:\\Users\\Administrator\\Desktop\\vault-break-glass.txt"
+  note: >-
+    break-glass vault credential on the DC's admin desktop; recoverable after
+    kerberoast/AS-REP/DCSync to Domain Admin, or via the svc_backup Backup
+    Operator path from the ks-files01 handover.
+scoring_hint: Lateral Movement
+evidence:
+  success: >-
+    domain compromise: a kerberoast / AS-REP-roastable account cracked
+    offline, then a privileged domain logon (ideally DCSync) as Domain Admin.
+  signals:
+    - journal: compromise event technique=ad-kerberos host=dc-roast
+    - pcap: kerberos (88) and ldap (389) traffic from a compromised corp host
+    - fsdiff: new file on dc01 (admin desktop flag read / ticket cache)
+  vmid: 930
+  host: "brain (willshomelab, 192.168.0.240)"
+  note: >-
+    REAL STATUS as of the brain/CORP expansion build: `qm start 930` succeeds
+    and dc01 boots (Windows, ostype win10, 2 vCPU / 3G, SeaBIOS). It already
+    has two NICs — net0 on vmbr43 (172.16.43.0/24, host-only "windows mgmt"
+    segment) and net1 on vmbr9 (10.99.50.0/24, the existing chainbreaker/
+    progression estate's bridge). A THIRD NIC (net2) was added on the new,
+    isolated Keystone CORP bridge vmbr50 (10.50.0.0/24) so Keystone CORP
+    traffic reaches dc01 without being bridged through the chainbreaker
+    estate's own network — a config-only, non-destructive change (no
+    disk/domain data touched). What is NOT verified or safely automatable:
+    whether keystone.local is actually configured as a domain on this VM,
+    whether a kerberoastable SPN / AS-REP-roastable user exists, and whether
+    the new NIC has a guest-OS IP — that needs an interactive Windows login
+    (RDP/console), which this build did not attempt unattended. Treat the AD
+    attack surface as UNVERIFIED until a human confirms domain state inside
+    the guest; this manifest claims VM reachability and NIC wiring only, not
+    an AD compromise path.

@@ -1,0 +1,36 @@
+id: ks-files01
+description: >-
+  Internal file server — a dedicated Keystone LXC on the brain (Proxmox, CORP
+  tier). Exposes an export with no effective access control, carrying a
+  credential-handover document — the no_root_squash-style "trust the network"
+  mistake, implemented here as a stdlib HTTP stand-in (no real NFS daemon
+  available offline).
+technique_class: nfs-nosquash
+substrate: lxc
+network_zone: corp
+hostname: ks-files01
+ports:
+  - 8091
+prereqs:
+  - ks-ws01
+enables:
+  - dc-roast
+  - ubuntu-dirtycow
+flag:
+  value: "KEYSTONE{files01-handover-<rot>}"
+  placement: /opt/ks-files01/flag.txt
+  rotate_per_run: true
+scoring_hint: Credential Access
+evidence:
+  success: >-
+    read the open export's credential-handover note, yielding a domain
+    credential or a route to one.
+  signals:
+    - journal: cred-harvest event host=ks-files01
+  ip: "10.50.0.12 (real, on brain bridge vmbr50)"
+  vmid: 951
+  host: "brain (willshomelab, 192.168.0.240)"
+  note: >-
+    stdlib-only python3 http.server standing in for an unauthenticated
+    export; honestly documented as a stand-in, not real NFS/SMB, because the
+    brain has no internet route to apt-install nfs-kernel-server/samba.

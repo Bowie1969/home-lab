@@ -1,0 +1,32 @@
+id: portal-sqli
+description: >-
+  Customer portal whose login builds SQL by string concatenation. A UNION-based
+  injection dumps the users table, leaking credentials reused on the corp tier.
+technique_class: sqli-cred
+substrate: container
+network_zone: dmz
+hostname: portal-sqli
+ports:
+  - 8081
+prereqs: []
+enables:
+  - runner-escape
+  - dc-roast
+  - ks-ws01
+build:
+  containerfile: Containerfile
+  context: .
+flag:
+  value: "KEYSTONE{portal-sqli-<rot>}"
+  placement: /app/flag.txt
+  rotate_per_run: true
+scoring_hint: Initial Access
+evidence:
+  ip: "10.99.50.112 (real, macvlan on dmz-web-a VM 970, brain vmbr9 VLAN 9)"
+  host: brain dmz-web-a (VM 970)
+  success: >-
+    dumped credentials from the users table via UNION injection; corp creds
+    (svc_portal) recovered for reuse.
+  signals:
+    - journal: foothold event technique=sqli-cred host=portal-sqli
+    - journal: recon event referencing recovered credential svc_portal

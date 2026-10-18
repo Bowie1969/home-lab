@@ -1,0 +1,15 @@
+# modelhub-pickle — model management endpoint with unsafe pickle deserialization.
+FROM docker.io/library/python:3.12-slim
+
+RUN useradd -m -u 1001 hive && mkdir -p /app/models /app/registry && chown -R hive:hive /app
+WORKDIR /app
+COPY app/server.py /app/server.py
+RUN echo "KEYSTONE{modelhub-rce-PLACEHOLDER}" > /app/flag.txt \
+ && chown hive:hive /app/flag.txt && chmod 600 /app/flag.txt \
+ && mkdir -p /app/.hive \
+ && echo "ks-vault-hive-c0ffee" > /app/.hive/vault.token \
+ && chown -R hive:hive /app/.hive && chmod 600 /app/.hive/vault.token
+
+USER hive
+EXPOSE 11435
+CMD ["python3", "/app/server.py"]

@@ -1,0 +1,10 @@
+# cron-root — root cron runs a world-writable script (local privesc).
+FROM docker.io/library/debian:12-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cron \
+ && rm -rf /var/lib/apt/lists/* \
+ && echo "KEYSTONE{cron-root-PLACEHOLDER}" > /root/flag.txt && chmod 600 /root/flag.txt \
+ && printf '#!/bin/sh\n# healthcheck\n' > /usr/local/bin/healthcheck.sh \
+ && chmod 0777 /usr/local/bin/healthcheck.sh \
+ && echo '* * * * * root /usr/local/bin/healthcheck.sh' > /etc/cron.d/healthcheck
+CMD ["cron", "-f"]

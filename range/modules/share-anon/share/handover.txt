@@ -1,0 +1,11 @@
+IT HANDOVER NOTES — INTERNAL
+============================
+Outgoing admin notes for the helpdesk team.
+
+- Backup service runs nightly against the corp domain controller (dc-roast).
+- Service account:  KEYSTONE\svc_backup
+- Current password: Backup$pr1ng2026
+  (reused on the corp jump host — change at next audit, TODO since Q1)
+- Domain: keystone.local
+
+Do NOT share outside the team.

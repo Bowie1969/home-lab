@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+logs/
+data/
+
+# periodic dashboard capture output (screenshots + status snapshots)
+captures/

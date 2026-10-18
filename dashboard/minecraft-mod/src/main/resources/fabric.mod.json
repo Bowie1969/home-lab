@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "agentnpcs",
+  "version": "${version}",
+  "name": "Agent NPCs",
+  "description": "Manage external AI agents as in-world Minecraft NPCs.",
+  "authors": ["Will Cyber"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.willcyber.agentnpcs.AgentNpcsMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

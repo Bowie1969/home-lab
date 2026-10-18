@@ -1,0 +1,10 @@
+# token-jwt — API accepting alg=none and a weak HS256 secret (auth bypass).
+FROM docker.io/library/python:3.12-slim
+RUN useradd -m -u 1001 app && mkdir -p /app
+WORKDIR /app
+COPY app/server.py /app/server.py
+RUN echo "KEYSTONE{jwt-bypass-PLACEHOLDER}" > /app/flag.txt \
+ && chown app:app /app/flag.txt && chmod 600 /app/flag.txt
+USER app
+EXPOSE 8085
+CMD ["python3", "/app/server.py"]

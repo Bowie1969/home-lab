@@ -1,0 +1,34 @@
+<!--
+  libvirt/QEMU domain for the kernel-privesc corp host.
+  Build once from a minimal Linux image pinned to a kernel with a known local
+  privesc (e.g. an older distro kernel), snapshot clean, then reset.sh reverts +
+  re-stamps the flag. Attaches to the keystone-corp bridge; IP from vms.json.
+
+  The point of using a VM (not a container) is that a container shares the host
+  kernel, so a kernel exploit there would either fail or endanger the host. The
+  VM gives a genuine, isolated vulnerable kernel.
+-->
+<domain type="kvm">
+  <name>kiosk-kernel</name>
+  <memory unit="GiB">2</memory>
+  <vcpu>2</vcpu>
+  <os>
+    <type arch="x86_64" machine="q35">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features><acpi/><apic/></features>
+  <cpu mode="host-passthrough"/>
+  <devices>
+    <disk type="file" device="disk">
+      <driver name="qemu" type="qcow2"/>
+      <source file="/var/lib/libvirt/images/keystone/kiosk-kernel.qcow2"/>
+      <target dev="vda" bus="virtio"/>
+    </disk>
+    <interface type="bridge">
+      <source bridge="keystone-corp"/>
+      <model type="virtio"/>
+    </interface>
+    <serial type="pty"><target port="0"/></serial>
+    <console type="pty"><target type="serial" port="0"/></console>
+  </devices>
+</domain>
