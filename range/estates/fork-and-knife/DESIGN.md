@@ -65,5 +65,5 @@ deploy token the runner hands back in results, which unlocks prod billing.
 1. `services.py` — dev portal, webhook, runner, vault (stdlib, ephemeral ports).
 2. `range/tests/test_estate_fork_and_knife.py` — drives the chain end-to-end
    and asserts every step.
-3. SD-card tooling (unchanged): `keystone/sdcard.py`, `bin/packcard.sh`,
-   `bin/loadcard.sh`.
+3. USB-stick tooling (unchanged): `keystone/usbstick.py`, `bin/packstick.sh`,
+   `bin/loadstick.sh`.

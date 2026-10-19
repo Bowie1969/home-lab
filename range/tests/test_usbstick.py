@@ -1,7 +1,7 @@
-"""SD-card range pack tooling tests — pack, verify, tamper, load, status.
+"""USB-stick range pack tooling tests — pack, verify, tamper, load, status.
 
-Exercises keystone.sdcard against a temporary directory standing in for a
-card mount and a temporary estates dir standing in for the repo, so no real
+Exercises keystone.usbstick against a temporary directory standing in for a
+stick mount and a temporary estates dir standing in for the repo, so no real
 SD hardware or repo mutation is needed. Pure stdlib.
 """
 from __future__ import annotations
@@ -18,14 +18,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from keystone import sdcard  # noqa: E402
+from keystone import usbstick  # noqa: E402
 
 
 def run_cmd(argv):
-    """Run a sdcard command with stdout+stderr captured; returns (rc, output)."""
+    """Run a usbstick command with stdout+stderr captured; returns (rc, output)."""
     out, err = io.StringIO(), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        rc = sdcard.main(argv)
+        rc = usbstick.main(argv)
     return rc, out.getvalue() + err.getvalue()
 
 
@@ -80,14 +80,14 @@ def build_estate(tmp, deploy_token):
 '''
 
 
-class SdcardToolingTest(unittest.TestCase):
+class UsbstickToolingTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
         base = Path(cls._tmp.name)
-        cls.cards = base / "cards"
+        cls.sticks = base / "sticks"
         cls.estates = base / "estates"
-        cls.cards.mkdir()
+        cls.sticks.mkdir()
         cls.estates.mkdir()
         fixture = cls.estates / "test-range"
         fixture.mkdir()
@@ -112,28 +112,28 @@ class SdcardToolingTest(unittest.TestCase):
             json.dumps({"range": "secrets-range", "title": "Secrets Fixture Range"}))
         (secretful / "services.py").write_text(FAKE_SERVICES_REQUIRED)
 
-        cls._orig_estates = sdcard.ESTATES_DIR
-        sdcard.ESTATES_DIR = cls.estates
+        cls._orig_estates = usbstick.ESTATES_DIR
+        usbstick.ESTATES_DIR = cls.estates
 
     @classmethod
     def tearDownClass(cls):
-        sdcard.ESTATES_DIR = cls._orig_estates
+        usbstick.ESTATES_DIR = cls._orig_estates
         cls._tmp.cleanup()
 
-    def _card(self, name: str) -> Path:
-        card = self.cards / name
-        card.mkdir(exist_ok=True)
-        return card
+    def _stick(self, name: str) -> Path:
+        stick = self.sticks / name
+        stick.mkdir(exist_ok=True)
+        return stick
 
     def test_pack_and_verify(self):
-        card = self._card("a")
-        rc, out = run_cmd(["pack", "test-range", str(card)])
+        stick = self._stick("a")
+        rc, out = run_cmd(["pack", "test-range", str(stick)])
         self.assertEqual(rc, 0, out)
         self.assertIn("packed test-range", out)
-        pack_dir = card / "keystone-ranges" / "test-range"
+        pack_dir = stick / "keystone-ranges" / "test-range"
         self.assertTrue((pack_dir / "RANGE_ID").is_file())
         self.assertTrue((pack_dir / "manifest.sha256").is_file())
-        rc, out = run_cmd(["verify", str(card)])
+        rc, out = run_cmd(["verify", str(stick)])
         self.assertEqual(rc, 0, out)
         self.assertIn("verify test-range: OK", out)
 
@@ -147,10 +147,10 @@ class SdcardToolingTest(unittest.TestCase):
         cache.mkdir()
         (cache / "services.cpython-313.pyc").write_bytes(b"\x00bytecode")
 
-        card = self._card("g")
-        rc, out = run_cmd(["pack", "pycache-range", str(card)])
+        stick = self._stick("g")
+        rc, out = run_cmd(["pack", "pycache-range", str(stick)])
         self.assertEqual(rc, 0, out)
-        pack_dir = card / "keystone-ranges" / "pycache-range"
+        pack_dir = stick / "keystone-ranges" / "pycache-range"
         self.assertFalse((pack_dir / "__pycache__").exists())
         self.assertEqual(
             sorted(p.name for p in pack_dir.rglob("*") if p.is_file()),
@@ -158,132 +158,132 @@ class SdcardToolingTest(unittest.TestCase):
         manifest = json.loads((pack_dir / "manifest.sha256").read_text())
         self.assertIn("services.py", manifest["files"])
         self.assertFalse([f for f in manifest["files"] if f.endswith(".pyc")])
-        rc, out = run_cmd(["verify", str(card)])
+        rc, out = run_cmd(["verify", str(stick)])
         self.assertEqual(rc, 0, out)
 
     def test_tamper_detected(self):
-        card = self._card("b")
-        run_cmd(["pack", "test-range", str(card)])
-        notes = card / "keystone-ranges" / "test-range" / "notes.txt"
+        stick = self._stick("b")
+        run_cmd(["pack", "test-range", str(stick)])
+        notes = stick / "keystone-ranges" / "test-range" / "notes.txt"
         notes.write_text("tampered\n")
-        rc, out = run_cmd(["verify", str(card)])
+        rc, out = run_cmd(["verify", str(stick)])
         self.assertEqual(rc, 1)
         self.assertIn("hash mismatch: notes.txt", out)
 
     def test_status_lists_ranges(self):
-        card = self._card("c")
-        run_cmd(["pack", "test-range", str(card)])
-        rc, out = run_cmd(["status", "--mount", str(card)])
+        stick = self._stick("c")
+        run_cmd(["pack", "test-range", str(stick)])
+        rc, out = run_cmd(["status", "--mount", str(stick)])
         self.assertEqual(rc, 0, out)
         self.assertIn("range=test-range", out)
 
     def test_load_refuses_without_force(self):
-        card = self._card("d")
-        run_cmd(["pack", "test-range", str(card)])
-        rc, out = run_cmd(["load", str(card)])
+        stick = self._stick("d")
+        run_cmd(["pack", "test-range", str(stick)])
+        rc, out = run_cmd(["load", str(stick)])
         self.assertEqual(rc, 4, out)
         self.assertIn("--force", out)
 
-    def test_load_imports_card_content(self):
-        card = self._card("e")
-        run_cmd(["pack", "test-range", str(card)])
+    def test_load_imports_stick_content(self):
+        stick = self._stick("e")
+        run_cmd(["pack", "test-range", str(stick)])
         (self.estates / "test-range" / "notes.txt").write_text("repo changed\n")
-        rc, out = run_cmd(["load", str(card), "--force"])
+        rc, out = run_cmd(["load", str(stick), "--force"])
         self.assertEqual(rc, 0, out)
         loaded = (self.estates / "test-range" / "notes.txt").read_text()
         self.assertEqual(loaded, "fixture notes\n")
 
     def test_load_rejects_bad_topology(self):
-        card = self._card("f")
-        run_cmd(["pack", "bad-range", str(card)])
+        stick = self._stick("f")
+        run_cmd(["pack", "bad-range", str(stick)])
         shutil.rmtree(self.estates / "bad-range")
-        rc, out = run_cmd(["load", str(card), "--estate", "bad-range"])
+        rc, out = run_cmd(["load", str(stick), "--estate", "bad-range"])
         self.assertEqual(rc, 5, out)
         self.assertIn("topology.json", out)
 
-    # --- one range per card ----------------------------------------------------
+    # --- one range per stick ----------------------------------------------------
 
     def test_pack_refuses_second_range(self):
-        card = self._card("h")
-        rc, out = run_cmd(["pack", "playable-range", str(card)])
+        stick = self._stick("h")
+        rc, out = run_cmd(["pack", "playable-range", str(stick)])
         self.assertEqual(rc, 0, out)
-        rc, out = run_cmd(["pack", "secrets-range", str(card)])
+        rc, out = run_cmd(["pack", "secrets-range", str(stick)])
         self.assertEqual(rc, 6, out)
-        self.assertIn("one range per card", out)
+        self.assertIn("one range per stick", out)
         self.assertIn("playable-range", out)
         # the refusal wrote nothing
-        self.assertEqual(sorted(p.name for p in (card / "keystone-ranges").iterdir()),
+        self.assertEqual(sorted(p.name for p in (stick / "keystone-ranges").iterdir()),
                          ["playable-range"])
 
     def test_pack_refuses_second_range_even_when_first_is_unverified(self):
-        card = self._card("i")
-        (card / "keystone-ranges" / "handwritten-range").mkdir(parents=True)
-        rc, out = run_cmd(["pack", "playable-range", str(card)])
+        stick = self._stick("i")
+        (stick / "keystone-ranges" / "handwritten-range").mkdir(parents=True)
+        rc, out = run_cmd(["pack", "playable-range", str(stick)])
         self.assertEqual(rc, 6, out)
         self.assertIn("handwritten-range", out)
 
     # --- plug and play ---------------------------------------------------------
 
-    def test_play_runs_estate_from_card(self):
-        card = self._card("j")
-        rc, out = run_cmd(["pack", "playable-range", str(card)])
+    def test_play_runs_estate_from_stick(self):
+        stick = self._stick("j")
+        rc, out = run_cmd(["pack", "playable-range", str(stick)])
         self.assertEqual(rc, 0, out)
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 0, out)
         self.assertIn("verified: playable-range", out)
         self.assertIn("Playable Fixture Range", out)
         self.assertIn("demo", out)
         self.assertRegex(out, r"port=\d+")
         self.assertIn("DESIGN.md", out)
-        # the estate ran off the card and was never copied into the tree
+        # the estate ran off the stick and was never copied into the tree
         self.assertFalse((self.estates / "playable-range" / "notes.txt").exists())
         self.assertNotIn("KEYSTONE{", out)
 
     def test_play_supplies_required_build_args(self):
-        card = self._card("k")
-        run_cmd(["pack", "secrets-range", str(card)])
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+        stick = self._stick("k")
+        run_cmd(["pack", "secrets-range", str(stick)])
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 0, out)
         self.assertIn("launch secrets", out)
         self.assertRegex(out, r"deploy_token = secrets-range-deploy_token-[0-9a-f]{8}")
 
-    def test_play_refuses_multi_range_card(self):
-        card = self._card("l")
-        run_cmd(["pack", "playable-range", str(card)])
-        (card / "keystone-ranges" / "sneaked-in").mkdir()
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+    def test_play_refuses_multi_range_stick(self):
+        stick = self._stick("l")
+        run_cmd(["pack", "playable-range", str(stick)])
+        (stick / "keystone-ranges" / "sneaked-in").mkdir()
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 6, out)
-        self.assertIn("one range per card", out)
+        self.assertIn("one range per stick", out)
         self.assertIn("sneaked-in", out)
 
-    def test_play_refuses_tampered_card(self):
-        card = self._card("m")
-        run_cmd(["pack", "playable-range", str(card)])
-        (card / "keystone-ranges" / "playable-range" / "services.py").write_text(
+    def test_play_refuses_tampered_stick(self):
+        stick = self._stick("m")
+        run_cmd(["pack", "playable-range", str(stick)])
+        (stick / "keystone-ranges" / "playable-range" / "services.py").write_text(
             "def build_estate(tmp):\n    return {}\n")
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 3, out)
         self.assertIn("hash mismatch: services.py", out)
 
     def test_play_reports_live_range_estate(self):
-        card = self._card("n")
-        run_cmd(["pack", "test-range", str(card)])  # topology + notes, no services.py
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+        stick = self._stick("n")
+        run_cmd(["pack", "test-range", str(stick)])  # topology + notes, no services.py
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 7, out)
         self.assertIn("no services.py", out)
         self.assertIn("launch.sh", out)
 
-    def test_play_does_not_write_to_the_card(self):
-        """Running an estate off a card must not mutate the card.
+    def test_play_does_not_write_to_the_stick(self):
+        """Running an estate off a stick must not mutate the stick.
 
-        Importing services.py from the card used to make CPython drop a
+        Importing services.py from the stick used to make CPython drop a
         __pycache__/services.cpython-3XX.pyc beside it, so one `play` left the
-        card failing its own manifest as an unexpected file.
+        stick failing its own manifest as an unexpected file.
         """
-        card = self._card("p")
-        rc, out = run_cmd(["pack", "playable-range", str(card)])
+        stick = self._stick("p")
+        rc, out = run_cmd(["pack", "playable-range", str(stick)])
         self.assertEqual(rc, 0, out)
-        pack_dir = card / "keystone-ranges" / "playable-range"
+        pack_dir = stick / "keystone-ranges" / "playable-range"
         listing = lambda: sorted(
             p.relative_to(pack_dir).as_posix() for p in pack_dir.rglob("*") if p.is_file())
         before = listing()
@@ -293,27 +293,27 @@ class SdcardToolingTest(unittest.TestCase):
         saved = sys.dont_write_bytecode
         sys.dont_write_bytecode = False
         try:
-            rc, out = run_cmd(["play", str(card), "--no-wait"])
+            rc, out = run_cmd(["play", str(stick), "--no-wait"])
         finally:
             sys.dont_write_bytecode = saved
         self.assertEqual(rc, 0, out)
 
-        self.assertEqual(listing(), before, "play wrote to the card")
+        self.assertEqual(listing(), before, "play wrote to the stick")
         self.assertFalse((pack_dir / "__pycache__").exists())
-        rc, out = run_cmd(["verify", str(card)])
+        rc, out = run_cmd(["verify", str(stick)])
         self.assertEqual(rc, 0, out)
         self.assertIn("verify playable-range: OK", out)
 
-    def test_play_errors_without_a_card(self):
-        card = self._card("o")
-        rc, out = run_cmd(["play", str(card), "--no-wait"])
+    def test_play_errors_without_a_stick(self):
+        stick = self._stick("o")
+        rc, out = run_cmd(["play", str(stick), "--no-wait"])
         self.assertEqual(rc, 2, out)
         self.assertIn("no range packs", out)
 
     def test_scrub_redacts_flag_material(self):
-        self.assertEqual(sdcard._scrub("KEYSTONE{blindforge-crown-4c91d2}"),
+        self.assertEqual(usbstick._scrub("KEYSTONE{blindforge-crown-4c91d2}"),
                          "<redacted: flag material>")
-        self.assertEqual(sdcard._scrub("gc-deploy-token-9a1b"), "gc-deploy-token-9a1b")
+        self.assertEqual(usbstick._scrub("gc-deploy-token-9a1b"), "gc-deploy-token-9a1b")
 
 
 if __name__ == "__main__":

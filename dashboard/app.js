@@ -1027,16 +1027,16 @@ function renderRunCard(snapshot) {
   $('run-id').textContent = status.run_id || '—';
   $('run-model').textContent = status.model || '—';
   // Where the board's topology came from when no run is active. An inserted
-  // range card outranks the checked-out build plan, so the viewer can tell
+  // range stick outranks the checked-out build plan, so the viewer can tell
   // whether they are looking at this lab or at a foreign estate on a stick.
   const sourcePill = $('run-source-pill');
   const source = status.topology_source;
-  if (source === 'card' || source === 'build') {
+  if (source === 'stick' || source === 'build') {
     sourcePill.hidden = false;
-    sourcePill.textContent = source === 'card' ? 'CARD' : 'BUILD PLAN';
-    sourcePill.className = 'pill ' + (source === 'card' ? 'pill-card' : 'pill-idle');
-    sourcePill.title = source === 'card'
-      ? 'Topology read from the inserted range card'
+    sourcePill.textContent = source === 'stick' ? 'USB STICK' : 'BUILD PLAN';
+    sourcePill.className = 'pill ' + (source === 'stick' ? 'pill-stick' : 'pill-idle');
+    sourcePill.title = source === 'stick'
+      ? 'Topology read from the inserted range stick'
       : 'Topology read from this lab\'s Keystone build plan';
   } else {
     sourcePill.hidden = true;

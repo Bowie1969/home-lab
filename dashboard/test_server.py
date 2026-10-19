@@ -473,14 +473,14 @@ class RangeWatcherTests(unittest.TestCase):
         self.orig_root = m.KEYSTONE_ROOT
         self.orig_runs = m.RUNS_DIR
         self.orig_data_dir = m.DATA_DIR
-        self.orig_card_mounts = m.card_mounts
+        self.orig_stick_mounts = m.stick_mounts
         m.KEYSTONE_ROOT = self.root
         m.RUNS_DIR = self.root / "runs"
         m.DATA_DIR = self.root / "data"
         # Hermetic by default: these tests are about run selection, and a real
-        # range card plugged into the host must not change their expectations.
-        # The card path gets its own explicit test below.
-        m.card_mounts = lambda mounts_text=None: []
+        # range stick plugged into the host must not change their expectations.
+        # The stick path gets its own explicit test below.
+        m.stick_mounts = lambda mounts_text=None: []
         self.watcher = m.RangeWatcher()
         self.watcher.control_scripts = {
             action: self.root / "bin" / f"{action}.sh"
@@ -491,7 +491,7 @@ class RangeWatcherTests(unittest.TestCase):
         m.KEYSTONE_ROOT = self.orig_root
         m.RUNS_DIR = self.orig_runs
         m.DATA_DIR = self.orig_data_dir
-        m.card_mounts = self.orig_card_mounts
+        m.stick_mounts = self.orig_stick_mounts
         self.tmp.cleanup()
 
     def write_run(self, run_id, mtime_offset=0, status=None):
@@ -1208,8 +1208,8 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(raised.exception.code, 404)
 
 
-class CardTopologyTests(unittest.TestCase):
-    """The board follows whichever range card is physically inserted."""
+class StickTopologyTests(unittest.TestCase):
+    """The board follows whichever range stick is physically inserted."""
 
     GLASS_CANARY = {
         "range": "glass-canary",
@@ -1234,37 +1234,37 @@ class CardTopologyTests(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def _card(self, range_id, topology, device="/dev/sda1"):
-        """Lay out a fake card and return a /proc/mounts line pointing at it."""
+    def _stick(self, range_id, topology, device="/dev/sda1"):
+        """Lay out a fake stick and return a /proc/mounts line pointing at it."""
         pack = self.root / "keystone-ranges" / range_id
         pack.mkdir(parents=True, exist_ok=True)
         (pack / "topology.json").write_text(json.dumps(topology), encoding="utf-8")
         return f"{device} {self.root} vfat rw,relatime 0 0\n"
 
-    def test_card_topology_is_read_from_the_inserted_card(self):
-        topo, note = m.load_card_topology(self._card("glass-canary", self.GLASS_CANARY))
+    def test_stick_topology_is_read_from_the_inserted_stick(self):
+        topo, note = m.load_stick_topology(self._stick("glass-canary", self.GLASS_CANARY))
         self.assertIsNotNone(topo)
-        self.assertEqual(note, "card glass-canary")
+        self.assertEqual(note, "stick glass-canary")
         self.assertEqual(topo["range"], "glass-canary")
         self.assertEqual({n["id"] for n in topo["nodes"]},
                          {"operator", "gc-tripwire", "gc-build"})
 
-    def test_swapping_the_card_swaps_the_nodes(self):
-        mounts = self._card("blind-forge", {
+    def test_swapping_the_stick_swaps_the_nodes(self):
+        mounts = self._stick("blind-forge", {
             "range": "blind-forge",
             "zones": [{"id": "forge", "label": "Blind Forge · VLAN 61"}],
             "nodes": [{"id": "bf-portal", "zone": "forge", "address": "10.61.0.10",
                        "position": [45.0, 35.0]}],
             "edges": [],
         })
-        topo, note = m.load_card_topology(mounts)
-        self.assertEqual(note, "card blind-forge")
+        topo, note = m.load_stick_topology(mounts)
+        self.assertEqual(note, "stick blind-forge")
         self.assertEqual([n["id"] for n in topo["nodes"]], ["bf-portal"])
         self.assertEqual(topo["zones"][0]["id"], "forge")
 
-    def test_card_estate_keeps_its_own_zones(self):
-        """10.50.0.x on a card must NOT be re-zoned into the lab's corp segment."""
-        topo, _ = m.load_card_topology(self._card("glass-canary", self.GLASS_CANARY))
+    def test_stick_estate_keeps_its_own_zones(self):
+        """10.50.0.x on a stick must NOT be re-zoned into the lab's corp segment."""
+        topo, _ = m.load_stick_topology(self._stick("glass-canary", self.GLASS_CANARY))
         self.assertEqual({z["id"] for z in topo["zones"]}, {"operators", "staging"})
         by_id = {n["id"]: n for n in topo["nodes"]}
         self.assertEqual(by_id["gc-tripwire"]["zone"], "staging")
@@ -1294,26 +1294,26 @@ class CardTopologyTests(unittest.TestCase):
                          {"attack", "fabric", "dmz", "corp", "data", "management"})
 
     def test_two_packs_are_refused_rather_than_guessed(self):
-        mounts = self._card("glass-canary", self.GLASS_CANARY)
+        mounts = self._stick("glass-canary", self.GLASS_CANARY)
         second = self.root / "keystone-ranges" / "cold-chain"
         second.mkdir(parents=True)
         (second / "topology.json").write_text(
             json.dumps({"range": "cold-chain", "nodes": [{"id": "cc-portal"}]}))
-        topo, note = m.load_card_topology(mounts)
+        topo, note = m.load_stick_topology(mounts)
         self.assertIsNone(topo)
-        self.assertIn("one range per card", note)
+        self.assertIn("one range per stick", note)
         self.assertIn("glass-canary", note)
         self.assertIn("cold-chain", note)
 
-    def test_unreadable_card_topology_is_reported_not_crashed(self):
-        mounts = self._card("broken-range", {"nodes": [{"id": "x"}]})
+    def test_unreadable_stick_topology_is_reported_not_crashed(self):
+        mounts = self._stick("broken-range", {"nodes": [{"id": "x"}]})
         (self.root / "keystone-ranges" / "broken-range" / "topology.json").write_text("{not json")
-        topo, note = m.load_card_topology(mounts)
+        topo, note = m.load_stick_topology(mounts)
         self.assertIsNone(topo)
         self.assertIn("unreadable", note)
 
-    def test_only_removable_devices_are_treated_as_cards(self):
-        topo, note = m.load_card_topology(f"/dev/nvme0n1p2 {self.root} btrfs rw 0 0\n")
+    def test_only_removable_devices_are_treated_as_sticks(self):
+        topo, note = m.load_stick_topology(f"/dev/nvme0n1p2 {self.root} btrfs rw 0 0\n")
         self.assertIsNone(topo)
         self.assertEqual(note, "")
 

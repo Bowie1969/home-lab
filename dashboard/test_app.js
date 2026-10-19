@@ -314,16 +314,16 @@ vm.runInContext('renderEvents(snapshot)', context);
 const defLi = getElement('events').children.find((li) => li.className === 'defense');
 assert.ok(defLi, 'defence actions should render as defence rows in the feed');
 
-// --- run-card provenance: is the board showing a card or this lab's build? ---
+// --- run-card provenance: is the board showing a stick or this lab's build? ---
 const sourcePill = getElement('run-source-pill');
 vm.runInContext(`renderRunCard({status: {
-  run_id: 'range-topology', range: 'blind-forge', state: 'idle', topology_source: 'card',
-  current_step: {detail: 'No active run — showing blind-forge from the inserted card.'},
+  run_id: 'range-topology', range: 'blind-forge', state: 'idle', topology_source: 'stick',
+  current_step: {detail: 'No active run — showing blind-forge from the inserted stick.'},
 }})`, context);
-assert.equal(sourcePill.hidden, false, 'an inserted range card should badge the run card');
-assert.equal(sourcePill.textContent, 'CARD');
-assert.equal(sourcePill.className, 'pill pill-card', 'a card needs its own colour, not the neutral idle pill');
-assert.match(sourcePill.title, /inserted range card/);
+assert.equal(sourcePill.hidden, false, 'an inserted range stick should badge the run card');
+assert.equal(sourcePill.textContent, 'USB STICK');
+assert.equal(sourcePill.className, 'pill pill-stick', 'a stick needs its own colour, not the neutral idle pill');
+assert.match(sourcePill.title, /inserted range stick/);
 
 vm.runInContext(`renderRunCard({status: {
   run_id: 'range-topology', range: 'keystone', state: 'idle', topology_source: 'build',

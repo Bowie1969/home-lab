@@ -58,4 +58,4 @@ credential/address leaked by the previous hop.
 2. `range/tests/test_estate_cold_chain.py` — drives the chain end-to-end and
    asserts every step, plus the negative cases (wrong MQTT creds rejected,
    wrong token denied, crown locked before unlock).
-3. SD-card tooling (`keystone/sdcard.py`) packs this estate like any other.
+3. USB-stick tooling (`keystone/usbstick.py`) packs this estate like any other.

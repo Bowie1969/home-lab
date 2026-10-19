@@ -72,4 +72,4 @@ flow requires a foothold.
 2. `scripts/0001..0006` + JSON sidecars (the RTS contract).
 3. `range/tests/test_estate_glass_canary.py` — drives the chain end-to-end and
    asserts the overlay score.
-4. SD-card tooling: `keystone/sdcard.py`, `bin/packcard.sh`, `bin/loadcard.sh`.
+4. USB-stick tooling: `keystone/usbstick.py`, `bin/packstick.sh`, `bin/loadstick.sh`.

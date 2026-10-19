@@ -80,5 +80,5 @@ schemes, so the crown cannot be read off disk.
    asserts every step, plus the blindness invariant and the negative cases
    (unregistered token refused, missing/wrong forge token denied, crown absent
    from every portal response).
-3. SD-card tooling (unchanged): `keystone/sdcard.py`, `bin/packcard.sh`,
-   `bin/loadcard.sh`.
+3. USB-stick tooling (unchanged): `keystone/usbstick.py`, `bin/packstick.sh`,
+   `bin/loadstick.sh`.

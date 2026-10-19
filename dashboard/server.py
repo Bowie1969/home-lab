@@ -316,7 +316,7 @@ def apply_topology_presentation(topology: dict) -> dict:
 
     This layer is lab-specific: it renames known keystone hosts, injects the
     physical fabric and re-zones nodes by IP prefix. A topology containing none
-    of the known lab hosts — an SD-card estate read straight off a card, say —
+    of the known lab hosts — an USB-stick estate read straight off a stick, say —
     is left to describe itself, zones included, so a foreign range is not
     silently re-zoned into segments it does not belong to.
     """
@@ -353,7 +353,7 @@ def apply_topology_presentation(topology: dict) -> dict:
                 node["telemetry"] = telemetry
         address = str(node.get("address") or node.get("real_ip") or node.get("ip") or "")
         # Re-zoning by IP prefix repairs stale snapshots of THIS lab. A foreign
-        # topology (a card estate) declares its own zones and its subnets mean
+        # topology (a stick estate) declares its own zones and its subnets mean
         # something else entirely, so the prefix map must not be applied to it.
         if is_keystone_lab and node_id not in {"parrot-operator", "pi-drop", "mesh-hub", "run8-vm"}:
             if "10.50.1." in address:
@@ -518,13 +518,13 @@ def load_range_topology() -> dict | None:
     return apply_topology_presentation(data)
 
 
-CARD_PACK_ROOT = "keystone-ranges"
+STICK_PACK_ROOT = "keystone-ranges"
 
 
-def card_mounts(mounts_text: str | None = None) -> list[Path]:
+def stick_mounts(mounts_text: str | None = None) -> list[Path]:
     """Mount points of removable block devices, from /proc/mounts.
 
-    ``mounts_text`` is injectable so the card scan can be tested without real
+    ``mounts_text`` is injectable so the stick scan can be tested without real
     removable hardware.
     """
     if mounts_text is None:
@@ -543,16 +543,16 @@ def card_mounts(mounts_text: str | None = None) -> list[Path]:
     return mounts
 
 
-def card_topology_paths(mounts_text: str | None = None) -> list[Path]:
-    """Every range pack's topology.json on every inserted card.
+def stick_topology_paths(mounts_text: str | None = None) -> list[Path]:
+    """Every range pack's topology.json on every inserted stick.
 
-    Read-only by design: a card in use must stay byte-identical to its
-    manifest, so the dashboard never writes to it. One range per card is the
-    packing rule, so more than one result means the card was packed wrong.
+    Read-only by design: a stick in use must stay byte-identical to its
+    manifest, so the dashboard never writes to it. One range per stick is the
+    packing rule, so more than one result means the stick was packed wrong.
     """
     found: list[Path] = []
-    for mount in card_mounts(mounts_text):
-        packs = mount / CARD_PACK_ROOT
+    for mount in stick_mounts(mounts_text):
+        packs = mount / STICK_PACK_ROOT
         if not packs.is_dir():
             continue
         for pack in sorted(packs.iterdir(), key=lambda p: str(p)):
@@ -562,27 +562,27 @@ def card_topology_paths(mounts_text: str | None = None) -> list[Path]:
     return found
 
 
-def load_card_topology(mounts_text: str | None = None) -> tuple[dict | None, str]:
-    """The topology of the range on the inserted card, plus a source note.
+def load_stick_topology(mounts_text: str | None = None) -> tuple[dict | None, str]:
+    """The topology of the range on the inserted stick, plus a source note.
 
-    Deliberately NOT passed through apply_topology_presentation: a card estate
+    Deliberately NOT passed through apply_topology_presentation: a stick estate
     is self-describing — its own zones, labels and positions — and the lab
     presentation layer would re-zone it into segments it does not belong to.
     """
-    paths = card_topology_paths(mounts_text)
+    paths = stick_topology_paths(mounts_text)
     if not paths:
         return None, ""
     if len(paths) > 1:
         return None, (f"{len(paths)} range packs are inserted "
-                      f"({', '.join(p.parent.name for p in paths)}); one range per card")
+                      f"({', '.join(p.parent.name for p in paths)}); one range per stick")
     try:
         data = json.loads(paths[0].read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None, f"card topology unreadable: {paths[0]}"
+        return None, f"stick topology unreadable: {paths[0]}"
     if not isinstance(data, dict) or not data.get("nodes"):
-        return None, f"card topology has no nodes: {paths[0]}"
+        return None, f"stick topology has no nodes: {paths[0]}"
     data.setdefault("range", paths[0].parent.name)
-    return data, f"card {paths[0].parent.name}"
+    return data, f"stick {paths[0].parent.name}"
 
 
 def load_fleet_telemetry() -> tuple[dict[str, dict], list[dict]]:
@@ -2016,23 +2016,23 @@ class RangeWatcher:
                 }
                 mode = "range"
         else:
-            # An inserted range card outranks the checked-out build plan: the
-            # card is what is physically plugged in right now, so swapping the
+            # An inserted range stick outranks the checked-out build plan: the
+            # stick is what is physically plugged in right now, so swapping the
             # stick swaps the map with no config edit and no restart.
-            card_topo, card_note = load_card_topology()
-            range_topo = card_topo if card_topo is not None else load_range_topology()
+            stick_topo, stick_note = load_stick_topology()
+            range_topo = stick_topo if stick_topo is not None else load_range_topology()
             topology = range_topo if range_topo is not None else {"nodes": [], "edges": [], "zones": []}
-            if card_topo is not None:
-                source = "card"
+            if stick_topo is not None:
+                source = "stick"
                 detail = (f"No active run \u2014 showing {topology.get('range', 'the range')} "
-                          f"from the inserted card.")
+                          f"from the inserted stick.")
             elif range_topo is not None:
                 source = "build"
                 detail = "No active run \u2014 showing the current Keystone range topology."
             else:
                 source = None
-                detail = (f"No active run \u2014 {card_note}." if card_note else
-                          "No active run \u2014 no range card inserted and no Keystone "
+                detail = (f"No active run \u2014 {stick_note}." if stick_note else
+                          "No active run \u2014 no range stick inserted and no Keystone "
                           "range topology available.")
             node_states, edge_states, events = {}, {}, []
             status = {

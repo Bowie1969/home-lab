@@ -1,28 +1,28 @@
-"""SD-card range packs: one estate per card, swap the card to swap the range.
+"""USB-stick range packs: one estate per stick, swap the stick to swap the range.
 
-Card layout (on any vfat/ext4 SD card):
+Stick layout (on any vfat/ext4 USB stick):
 
     <mount>/keystone-ranges/<range_id>/
         RANGE_ID            text file naming the range
         manifest.sha256     json: packed_at, range_id, per-file sha256
         <estate files...>   the estate's own files, copied verbatim
 
-Commands (run from range/, `python3 -m keystone.sdcard ...`):
+Commands (run from range/, `python3 -m keystone.usbstick ...`):
 
-    pack <range_id> <mount>          export an estate onto a card
-    play [mount] [--no-wait]         verify a card and run its estate
-    load <mount> [--estate ID] [--force]   verify and import a card's estate
-    status [--mount PATH]            which card holds which range
-    verify <mount>                   re-hash a card and check its manifest
+    pack <range_id> <mount>          export an estate onto a stick
+    play [mount] [--no-wait]         verify a stick and run its estate
+    load <mount> [--estate ID] [--force]   verify and import a stick's estate
+    status [--mount PATH]            which stick holds which range
+    verify <mount>                   re-hash a stick and check its manifest
 
-One range per card, enforced by `pack`: a card that already holds a different
+One range per stick, enforced by `pack`: a stick that already holds a different
 range is refused rather than appended to. `play` is the plug-and-play path —
-plug the card in, run it, and the estate comes up on ephemeral localhost ports
-with its port map printed. It runs the estate straight off the card, so nothing
+plug the stick in, run it, and the estate comes up on ephemeral localhost ports
+with its port map printed. It runs the estate straight off the stick, so nothing
 is copied into the git tree.
 
-The git tree stays the source of truth; cards are disposable deployable copies.
-Runs never write telemetry to the card — pack and load are the only writers.
+The git tree stays the source of truth; sticks are disposable deployable copies.
+Runs never write telemetry to the stick — pack and load are the only writers.
 
 Pure Python 3 stdlib. No third-party imports.
 """
@@ -45,9 +45,9 @@ ROOT = Path(__file__).resolve().parents[1]
 ESTATES_DIR = ROOT / "estates"
 PACK_ROOT = "keystone-ranges"
 
-# Bytecode is regenerated per-host and would otherwise ride along on every card
+# Bytecode is regenerated per-host and would otherwise ride along on every stick
 # (and into every manifest), so packs are source-only. `load` deliberately does
-# NOT filter: importing a card must reproduce exactly what the card holds, and
+# NOT filter: importing a stick must reproduce exactly what the stick holds, and
 # `verify` is what reports an unexpected file.
 PACK_IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo")
 
@@ -65,7 +65,7 @@ def _range_id_path(mount: Path, range_id: str) -> Path:
 
 
 def _existing_packs(mount: Path) -> List[str]:
-    """Range packs already on a card, sorted."""
+    """Range packs already on a stick, sorted."""
     packs_root = mount / PACK_ROOT
     if not packs_root.is_dir():
         return []
@@ -88,21 +88,21 @@ def _file_hashes(dir_path: Path) -> Dict[str, str]:
     return out
 
 
-def list_mounted_cards() -> List[Tuple[str, Path]]:
+def list_mounted_sticks() -> List[Tuple[str, Path]]:
     """Detected removable block devices from /proc/mounts: (device, mountpoint)."""
-    cards: List[Tuple[str, Path]] = []
+    sticks: List[Tuple[str, Path]] = []
     try:
         lines = Path("/proc/mounts").read_text().splitlines()
     except OSError:
-        return cards
+        return sticks
     for line in lines:
         parts = line.split()
         if len(parts) < 2:
             continue
         dev, mnt = parts[0], parts[1]
         if dev.startswith("/dev/mmcblk") or dev.startswith("/dev/sd"):
-            cards.append((dev, Path(mnt)))
-    return cards
+            sticks.append((dev, Path(mnt)))
+    return sticks
 
 
 def cmd_pack(range_id: str, mount: Path) -> int:
@@ -111,16 +111,16 @@ def cmd_pack(range_id: str, mount: Path) -> int:
         print(f"error: estate not found: {source}", file=sys.stderr)
         return 2
     if not mount.is_dir():
-        print(f"error: card mount not found: {mount}", file=sys.stderr)
+        print(f"error: stick mount not found: {mount}", file=sys.stderr)
         return 2
     dest = _range_dir(mount, range_id)
     if dest.exists():
-        print(f"error: card already holds {range_id} (remove it first)", file=sys.stderr)
+        print(f"error: stick already holds {range_id} (remove it first)", file=sys.stderr)
         return 2
     held = [r for r in _existing_packs(mount) if r != range_id]
     if held:
-        print(f"error: card already holds {', '.join(held)} — one range per card. "
-              f"Use a different card, or remove {PACK_ROOT}/ from this one first.",
+        print(f"error: stick already holds {', '.join(held)} — one range per stick. "
+              f"Use a different stick, or remove {PACK_ROOT}/ from this one first.",
               file=sys.stderr)
         return 6
     dest.mkdir(parents=True)
@@ -133,7 +133,7 @@ def cmd_pack(range_id: str, mount: Path) -> int:
     }
     _manifest_path(mount, range_id).write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print(f"[sdcard] packed {range_id} -> {mount}/{PACK_ROOT}/{range_id} "
+    print(f"[usbstick] packed {range_id} -> {mount}/{PACK_ROOT}/{range_id} "
           f"({len(manifest['files'])} files)")
     return 0
 
@@ -169,21 +169,21 @@ def _verify_range(mount: Path, range_id: str) -> Tuple[bool, List[str]]:
 
 def cmd_verify(mount: Path) -> int:
     if not mount.is_dir():
-        print(f"error: card mount not found: {mount}", file=sys.stderr)
+        print(f"error: stick mount not found: {mount}", file=sys.stderr)
         return 2
     packs = sorted(p.name for p in (mount / PACK_ROOT).iterdir() if p.is_dir()) \
         if (mount / PACK_ROOT).is_dir() else []
     if not packs:
-        print(f"[sdcard] no range packs on {mount}")
+        print(f"[usbstick] no range packs on {mount}")
         return 0
     rc = 0
     for range_id in packs:
         ok, problems = _verify_range(mount, range_id)
         if ok:
-            print(f"[sdcard] verify {range_id}: OK")
+            print(f"[usbstick] verify {range_id}: OK")
         else:
             rc = 1
-            print(f"[sdcard] verify {range_id}: FAIL")
+            print(f"[usbstick] verify {range_id}: FAIL")
             for problem in problems:
                 print(f"  - {problem}")
     return rc
@@ -191,16 +191,16 @@ def cmd_verify(mount: Path) -> int:
 
 def cmd_status(mount: Optional[Path]) -> int:
     if mount is not None:
-        cards = [("given mount", mount)]
+        sticks = [("given mount", mount)]
     else:
-        cards = list_mounted_cards()
-        if not cards:
-            print("[sdcard] no SD cards detected (no /dev/mmcblk* or /dev/sd* mounts)")
+        sticks = list_mounted_sticks()
+        if not sticks:
+            print("[usbstick] no USB sticks detected (no /dev/mmcblk* or /dev/sd* mounts)")
             return 0
-    for dev, mnt in cards:
+    for dev, mnt in sticks:
         packs_root = mnt / PACK_ROOT
         if not packs_root.is_dir():
-            print(f"[sdcard] {dev} ({mnt}): no keystone range packs")
+            print(f"[usbstick] {dev} ({mnt}): no keystone range packs")
             continue
         for pack in sorted(packs_root.iterdir()):
             if not pack.is_dir():
@@ -210,13 +210,13 @@ def cmd_status(mount: Optional[Path]) -> int:
             if rid_path.is_file():
                 rid = rid_path.read_text().strip()
             ok, _ = _verify_range(mnt, pack.name)
-            print(f"[sdcard] {dev} ({mnt}): range={rid or pack.name} verify={'OK' if ok else 'FAIL'}")
+            print(f"[usbstick] {dev} ({mnt}): range={rid or pack.name} verify={'OK' if ok else 'FAIL'}")
     return 0
 
 
 def cmd_load(mount: Path, estate: Optional[str], force: bool) -> int:
     if not mount.is_dir():
-        print(f"error: card mount not found: {mount}", file=sys.stderr)
+        print(f"error: stick mount not found: {mount}", file=sys.stderr)
         return 2
     packs_root = mount / PACK_ROOT
     range_ids = [p.name for p in packs_root.iterdir() if p.is_dir()] \
@@ -226,19 +226,19 @@ def cmd_load(mount: Path, estate: Optional[str], force: bool) -> int:
         return 2
     if estate is not None:
         if estate not in range_ids:
-            print(f"error: card has no range {estate} (has: {', '.join(range_ids)})",
+            print(f"error: stick has no range {estate} (has: {', '.join(range_ids)})",
                   file=sys.stderr)
             return 2
         range_id = estate
     elif len(range_ids) == 1:
         range_id = range_ids[0]
     else:
-        print(f"error: card holds multiple ranges ({', '.join(range_ids)}); "
+        print(f"error: stick holds multiple ranges ({', '.join(range_ids)}); "
               "pick one with --estate", file=sys.stderr)
         return 2
     ok, problems = _verify_range(mount, range_id)
     if not ok:
-        print(f"error: card verification failed for {range_id}:", file=sys.stderr)
+        print(f"error: stick verification failed for {range_id}:", file=sys.stderr)
         for problem in problems:
             print(f"  - {problem}", file=sys.stderr)
         return 3
@@ -254,36 +254,36 @@ def cmd_load(mount: Path, estate: Optional[str], force: bool) -> int:
     except (OSError, ValueError, AssertionError) as exc:
         print(f"error: loaded estate has no valid topology.json: {exc}", file=sys.stderr)
         return 5
-    print(f"[sdcard] loaded {range_id} from card into {dest}")
-    print(f"[sdcard] next: python3 -m keystone.sdcard status; "
+    print(f"[usbstick] loaded {range_id} from stick into {dest}")
+    print(f"[usbstick] next: python3 -m keystone.usbstick status; "
           f"cd {ROOT} && ./bin/launch.sh")
     return 0
 
 
-def _detect_card() -> Tuple[Optional[Path], str]:
-    """Find the one mounted card that holds a range pack."""
-    holders = [mnt for _dev, mnt in list_mounted_cards() if _existing_packs(mnt)]
+def _detect_stick() -> Tuple[Optional[Path], str]:
+    """Find the one mounted stick that holds a range pack."""
+    holders = [mnt for _dev, mnt in list_mounted_sticks() if _existing_packs(mnt)]
     if not holders:
-        return None, "no mounted card holds a keystone range pack"
+        return None, "no mounted stick holds a keystone range pack"
     if len(holders) > 1:
-        return None, ("multiple cards hold range packs ("
+        return None, ("multiple sticks hold range packs ("
                       + ", ".join(str(h) for h in holders)
                       + "); pass the mount explicitly")
     return holders[0], ""
 
 
 def _load_services_module(range_dir: Path):
-    """Import a packed estate's services.py straight off the card.
+    """Import a packed estate's services.py straight off the stick.
 
     Bytecode writing is suppressed for the import. Without it CPython drops a
-    ``__pycache__/services.cpython-3XX.pyc`` next to the module ON THE CARD,
+    ``__pycache__/services.cpython-3XX.pyc`` next to the module ON THE STICK,
     which is an unexpected file as far as the manifest is concerned — a single
-    `play` would leave the card failing its own verification.
+    `play` would leave the stick failing its own verification.
     """
     path = range_dir / "services.py"
     if not path.is_file():
         return None
-    name = f"keystone_card_{range_dir.name.replace('-', '_')}"
+    name = f"keystone_stick_{range_dir.name.replace('-', '_')}"
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     previous = sys.dont_write_bytecode
@@ -328,7 +328,7 @@ def _scrub(text: str) -> str:
     return "<redacted: flag material>" if "KEYSTONE{" in text else text
 
 
-def start_card_estate(range_dir: Path, workdir: Path):
+def start_stick_estate(range_dir: Path, workdir: Path):
     """Build and start a packed estate; returns (services_by_name, supplied_secrets)."""
     module = _load_services_module(range_dir)
     if module is None or not hasattr(module, "build_estate"):
@@ -340,7 +340,7 @@ def start_card_estate(range_dir: Path, workdir: Path):
     return estate, supplied
 
 
-def describe_card_estate(range_dir: Path, estate: Dict[str, object],
+def describe_stick_estate(range_dir: Path, estate: Dict[str, object],
                          supplied: Dict[str, str]) -> str:
     """The plug-and-play banner: what came up, where, and what to attack."""
     title = range_dir.name
@@ -365,49 +365,49 @@ def describe_card_estate(range_dir: Path, estate: Dict[str, object],
 
 def cmd_play(mount: Optional[Path], wait: bool) -> int:
     if mount is None:
-        mount, error = _detect_card()
+        mount, error = _detect_stick()
         if mount is None:
             print(f"error: {error}", file=sys.stderr)
             return 2
     if not mount.is_dir():
-        print(f"error: card mount not found: {mount}", file=sys.stderr)
+        print(f"error: stick mount not found: {mount}", file=sys.stderr)
         return 2
     held = _existing_packs(mount)
     if not held:
         print(f"error: no range packs on {mount}", file=sys.stderr)
         return 2
     if len(held) > 1:
-        print(f"error: card holds {len(held)} ranges ({', '.join(held)}) — "
-              f"one range per card", file=sys.stderr)
+        print(f"error: stick holds {len(held)} ranges ({', '.join(held)}) — "
+              f"one range per stick", file=sys.stderr)
         return 6
     range_id = held[0]
     ok, problems = _verify_range(mount, range_id)
     if not ok:
-        print(f"error: card verification failed for {range_id}:", file=sys.stderr)
+        print(f"error: stick verification failed for {range_id}:", file=sys.stderr)
         for problem in problems:
             print(f"  - {problem}", file=sys.stderr)
         return 3
     range_dir = _range_dir(mount, range_id)
     if not (range_dir / "services.py").is_file():
-        print(f"[sdcard] {range_id} verified OK but ships no services.py — it is a "
+        print(f"[usbstick] {range_id} verified OK but ships no services.py — it is a "
               f"live-range estate (podman/VM), not a stdlib one.", file=sys.stderr)
-        print(f"[sdcard] use the live path instead: "
-              f"python3 -m keystone.sdcard load {mount} && ./bin/launch.sh",
+        print(f"[usbstick] use the live path instead: "
+              f"python3 -m keystone.usbstick load {mount} && ./bin/launch.sh",
               file=sys.stderr)
         return 7
-    print(f"[sdcard] card {mount} verified: {range_id}")
+    print(f"[usbstick] stick {mount} verified: {range_id}")
     with tempfile.TemporaryDirectory(prefix=f"keystone-{range_id}-") as work:
         try:
-            estate, supplied = start_card_estate(range_dir, Path(work))
+            estate, supplied = start_stick_estate(range_dir, Path(work))
         except Exception as exc:  # noqa: BLE001 - report and exit, never traceback
             print(f"error: could not start {range_id}: {exc}", file=sys.stderr)
             return 8
         try:
-            print(describe_card_estate(range_dir, estate, supplied))
+            print(describe_stick_estate(range_dir, estate, supplied))
             while wait:
                 time.sleep(0.5)
         except KeyboardInterrupt:
-            print(f"\n[sdcard] stopping {range_id}")
+            print(f"\n[usbstick] stopping {range_id}")
         finally:
             for service in estate.values():
                 try:
@@ -418,23 +418,23 @@ def cmd_play(mount: Optional[Path], wait: bool) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="keystone.sdcard",
-                                     description="SD-card range pack tool")
+    parser = argparse.ArgumentParser(prog="keystone.usbstick",
+                                     description="USB-stick range pack tool")
     sub = parser.add_subparsers(dest="command", required=True)
-    pack = sub.add_parser("pack", help="export an estate onto a card")
+    pack = sub.add_parser("pack", help="export an estate onto a stick")
     pack.add_argument("range_id")
     pack.add_argument("mount", type=Path)
-    load = sub.add_parser("load", help="verify and import a card's estate")
+    load = sub.add_parser("load", help="verify and import a stick's estate")
     load.add_argument("mount", type=Path)
     load.add_argument("--estate", default=None)
     load.add_argument("--force", action="store_true")
-    status = sub.add_parser("status", help="which card holds which range")
+    status = sub.add_parser("status", help="which stick holds which range")
     status.add_argument("--mount", type=Path, default=None)
-    verify = sub.add_parser("verify", help="re-hash a card and check its manifest")
+    verify = sub.add_parser("verify", help="re-hash a stick and check its manifest")
     verify.add_argument("mount", type=Path)
-    play = sub.add_parser("play", help="verify a card and run its estate (plug and play)")
+    play = sub.add_parser("play", help="verify a stick and run its estate (plug and play)")
     play.add_argument("mount", type=Path, nargs="?", default=None,
-                      help="card mount (auto-detected when omitted)")
+                      help="stick mount (auto-detected when omitted)")
     play.add_argument("--no-wait", action="store_true",
                       help="start, print the port map, then stop (smoke test)")
     args = parser.parse_args(argv)

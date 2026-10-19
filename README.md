@@ -19,13 +19,13 @@ Three things that belong together, in one repository:
   manifests, and a path-agnostic scorer grades the agent's evidence against a
   private ground-truth side channel. Challenge modules ship as containers, LXC
   guests, or VM definitions — no VM disks or vulnerable binaries are bundled.
-  Whole estates also pack onto an SD card or USB stick as a verified,
-  self-contained range: swap the stick, swap the range.
+  Whole estates also pack onto a USB stick as a verified, self-contained
+  range: swap the stick, swap the range.
 - **`dashboard/` — live monitor.** A read-only dashboard that visualises a run's
   estate topology, agent events, and score breakdown. Single-file server
   (`server.py`) with server-sent events, an in-browser force-simulation canvas
   (`app.js`, no d3, no CDN, no build step), and a self-looping demo dataset.
-  With no run active it follows whichever range card is physically inserted.
+  With no run active it follows whichever range stick is physically inserted.
 - **`network/` — the home-lab network.** The physical wiring and zone/VLAN
   config behind it all: a MikroTik hEX router, a TP-Link SG108E switch, and an
   Asus edge router, segmented into mgmt / dmz / corp / data / attacker VLANs so
