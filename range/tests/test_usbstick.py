@@ -294,6 +294,78 @@ class UsbstickToolingTest(unittest.TestCase):
         rc, out = run_cmd(["verify", str(stick)])
         self.assertEqual(rc, 0, out)
 
+    # --- tree-vs-stick drift ----------------------------------------------------
+
+    def _diff_fixture(self) -> Path:
+        src = self.estates / "diff-range"
+        if src.exists():
+            shutil.rmtree(src)
+        src.mkdir()
+        (src / "topology.json").write_text(
+            json.dumps({"range": "diff-range", "title": "fixture"}))
+        (src / "notes.txt").write_text("v1\n")
+        return src
+
+    def test_diff_reports_in_sync(self):
+        self._diff_fixture()
+        stick = self._stick("u")
+        run_cmd(["pack", "diff-range", str(stick)])
+        rc, out = run_cmd(["diff", str(stick)])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("diff diff-range: in sync with the tree", out)
+
+    def test_diff_catches_a_stale_pack_that_still_verifies(self):
+        """The gap verify cannot see: the repo moved on after the stick was packed."""
+        src = self._diff_fixture()
+        stick = self._stick("v")
+        run_cmd(["pack", "diff-range", str(stick)])
+        (src / "DESIGN.md").write_text("objective rewritten after packing\n")
+        # the stick is self-consistent, so verify is happy
+        rc, out = run_cmd(["verify", str(stick)])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("verify diff-range: OK", out)
+        # ...and diff is what reports the drift
+        rc, out = run_cmd(["diff", str(stick)])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("STALE", out)
+        self.assertIn("in tree, not on stick: DESIGN.md", out)
+        self.assertIn("--force", out)
+
+    def test_diff_reports_changed_missing_and_extra(self):
+        src = self._diff_fixture()
+        (src / "obsolete.txt").write_text("shipped in the old pack\n")
+        stick = self._stick("w")
+        run_cmd(["pack", "diff-range", str(stick)])
+        (src / "notes.txt").write_text("v2\n")            # changed
+        (src / "added.txt").write_text("new\n")           # missing from the stick
+        (src / "obsolete.txt").unlink()                  # extra on the stick
+        rc, out = run_cmd(["diff", str(stick)])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("differs from tree: notes.txt", out)
+        self.assertIn("in tree, not on stick: added.txt", out)
+        self.assertIn("on stick, not in tree: obsolete.txt", out)
+
+    def test_diff_ignores_bytecode(self):
+        src = self._diff_fixture()
+        cache = src / "__pycache__"
+        cache.mkdir()
+        (cache / "services.cpython-313.pyc").write_bytes(b"\x00bytecode")
+        stick = self._stick("x")
+        run_cmd(["pack", "diff-range", str(stick)])
+        rc, out = run_cmd(["diff", str(stick)])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("in sync", out)
+        self.assertNotIn("pyc", out)
+
+    def test_diff_reports_an_estate_missing_from_the_tree(self):
+        self._diff_fixture()
+        stick = self._stick("y")
+        run_cmd(["pack", "diff-range", str(stick)])
+        shutil.rmtree(self.estates / "diff-range")
+        rc, out = run_cmd(["diff", str(stick)])
+        self.assertEqual(rc, 1, out)
+        self.assertIn("NO SUCH ESTATE", out)
+
     # --- plug and play ---------------------------------------------------------
 
     def test_play_runs_estate_from_stick(self):

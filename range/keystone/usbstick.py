@@ -14,6 +14,13 @@ Commands (run from range/, `python3 -m keystone.usbstick ...`):
     load <mount> [--estate ID] [--force]   verify and import a stick's estate
     status [--mount PATH]            which stick holds which range
     verify <mount>                   re-hash a stick and check its manifest
+    diff [mount]                     check a stick's pack against the tree estate
+
+`verify` and `diff` answer different questions. `verify` re-hashes a stick
+against its own manifest, so it catches tampering and partial writes — but a
+stick packed a month ago still verifies OK. `diff` compares the pack against the
+estate as it stands in the tree, which is what tells you a stick has gone stale
+and needs `pack --force`.
 
 One range per stick, enforced by `pack`: a stick that already holds a different
 range is refused rather than appended to, and `--force` only ever refreshes the
@@ -196,6 +203,81 @@ def cmd_verify(mount: Path) -> int:
             print(f"[usbstick] verify {range_id}: FAIL")
             for problem in problems:
                 print(f"  - {problem}")
+    return rc
+
+
+def _is_pack_ignored(path: Path, root: Path) -> bool:
+    """Whether PACK_IGNORE would have dropped this tree file from a pack.
+
+    Mirrors the shutil pattern for the drift check: bytecode never ships, so it
+    must never be reported as missing from a stick.
+    """
+    rel = path.relative_to(root).parts
+    return "__pycache__" in rel or path.suffix in {".pyc", ".pyo"}
+
+
+# Pack metadata is generated at pack time and has no counterpart in the tree,
+# so it is excluded from a drift comparison.
+_PACK_METADATA = {"RANGE_ID", "manifest.sha256"}
+
+
+def pack_drift(mount: Path, range_id: str) -> Dict[str, List[str]]:
+    """Tree-vs-stick drift for one packed range.
+
+    ``verify`` answers "does this stick match its own manifest" — it cannot see
+    that the repo has moved on since the stick was packed, so a stale stick
+    still verifies OK. This is the other question: does the stick match the
+    estate as it stands in the tree right now?
+    """
+    source = ESTATES_DIR / range_id
+    pack = _range_dir(mount, range_id)
+    tree: Dict[str, str] = {}
+    if source.is_dir():
+        for path in sorted(source.rglob("*")):
+            if path.is_file() and not _is_pack_ignored(path, source):
+                tree[str(path.relative_to(source))] = _sha256(path)
+    stick = {rel: digest for rel, digest in _file_hashes(pack).items()
+             if rel not in _PACK_METADATA}
+    return {
+        "changed": sorted(r for r in tree if r in stick and tree[r] != stick[r]),
+        "missing": sorted(r for r in tree if r not in stick),
+        "extra": sorted(r for r in stick if r not in tree),
+        "no_estate": [] if source.is_dir() else [str(source)],
+    }
+
+
+def cmd_diff(mount: Optional[Path]) -> int:
+    if mount is None:
+        mount, error = _detect_stick()
+        if mount is None:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+    if not mount.is_dir():
+        print(f"error: stick mount not found: {mount}", file=sys.stderr)
+        return 2
+    packs = _existing_packs(mount)
+    if not packs:
+        print(f"error: no range packs on {mount}", file=sys.stderr)
+        return 2
+    rc = 0
+    for range_id in packs:
+        drift = pack_drift(mount, range_id)
+        if drift["no_estate"]:
+            rc = 1
+            print(f"[usbstick] diff {range_id}: NO SUCH ESTATE in the tree "
+                  f"({drift['no_estate'][0]})")
+            continue
+        if not (drift["changed"] or drift["missing"] or drift["extra"]):
+            print(f"[usbstick] diff {range_id}: in sync with the tree")
+            continue
+        rc = 1
+        print(f"[usbstick] diff {range_id}: STALE — refresh with "
+              f"./bin/packstick.sh {range_id} {mount} --force")
+        for label, key in (("differs from tree", "changed"),
+                           ("in tree, not on stick", "missing"),
+                           ("on stick, not in tree", "extra")):
+            for rel in drift[key]:
+                print(f"  - {label}: {rel}")
     return rc
 
 
@@ -444,6 +526,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     status.add_argument("--mount", type=Path, default=None)
     verify = sub.add_parser("verify", help="re-hash a stick and check its manifest")
     verify.add_argument("mount", type=Path)
+    diff = sub.add_parser("diff", help="check a stick's pack against the tree estate")
+    diff.add_argument("mount", type=Path, nargs="?", default=None,
+                      help="stick mount (auto-detected when omitted)")
     play = sub.add_parser("play", help="verify a stick and run its estate (plug and play)")
     play.add_argument("mount", type=Path, nargs="?", default=None,
                       help="stick mount (auto-detected when omitted)")
@@ -458,6 +543,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return cmd_status(args.mount)
     if args.command == "verify":
         return cmd_verify(args.mount)
+    if args.command == "diff":
+        return cmd_diff(args.mount)
     if args.command == "play":
         return cmd_play(args.mount, not args.no_wait)
     return 2

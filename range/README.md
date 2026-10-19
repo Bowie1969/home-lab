@@ -93,8 +93,21 @@ disposable, verifiable copy of one estate.
 ./bin/packstick.sh blind-forge /media/will_cyber/65A0-E7B1  # export one estate
 python3 -m keystone.usbstick status                          # which stick holds what
 python3 -m keystone.usbstick verify /media/will_cyber/65A0-E7B1
+python3 -m keystone.usbstick diff                            # stick vs the tree
 ./bin/playstick.sh                                           # verify + run off the stick
 ./bin/loadstick.sh /media/will_cyber/65A0-E7B1               # import into estates/
+```
+
+`verify` and `diff` answer different questions, and you want both. `verify`
+re-hashes a stick against **its own manifest**, so it catches tampering and
+partial writes — but a stick packed before the last commit still verifies OK.
+`diff` compares the pack against the estate **as it stands in the tree**, which
+is what tells you a stick has gone stale:
+
+```
+$ python3 -m keystone.usbstick diff
+[usbstick] diff blind-forge: STALE — refresh with ./bin/packstick.sh blind-forge /media/will_cyber/65A0-E7B1 --force
+  - differs from tree: DESIGN.md
 ```
 
 `play` auto-detects the mounted stick, re-hashes it against `manifest.sha256`,
