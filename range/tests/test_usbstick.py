@@ -2,7 +2,7 @@
 
 Exercises keystone.usbstick against a temporary directory standing in for a
 stick mount and a temporary estates dir standing in for the repo, so no real
-SD hardware or repo mutation is needed. Pure stdlib.
+USB hardware or repo mutation is needed. Pure stdlib.
 """
 from __future__ import annotations
 
@@ -221,6 +221,78 @@ class UsbstickToolingTest(unittest.TestCase):
         rc, out = run_cmd(["pack", "playable-range", str(stick)])
         self.assertEqual(rc, 6, out)
         self.assertIn("handwritten-range", out)
+
+    # --- refreshing a stale pack ------------------------------------------------
+
+    def _refresh_fixture(self) -> Path:
+        src = self.estates / "refresh-range"
+        src.mkdir(exist_ok=True)
+        (src / "topology.json").write_text(
+            json.dumps({"range": "refresh-range", "title": "fixture"}))
+        (src / "notes.txt").write_text("v1\n")
+        return src
+
+    def test_pack_refuses_an_existing_range_without_force(self):
+        self._refresh_fixture()
+        stick = self._stick("q")
+        rc, out = run_cmd(["pack", "refresh-range", str(stick)])
+        self.assertEqual(rc, 0, out)
+        rc, out = run_cmd(["pack", "refresh-range", str(stick)])
+        self.assertEqual(rc, 2, out)
+        self.assertIn("--force", out)
+
+    def test_pack_force_replaces_rather_than_merges(self):
+        src = self._refresh_fixture()
+        (src / "obsolete.pyc").write_bytes(b"\x00host-specific bytecode")
+        stick = self._stick("r")
+        rc, out = run_cmd(["pack", "refresh-range", str(stick)])
+        self.assertEqual(rc, 0, out)
+        # the estate is fixed in the tree: one file dropped, another corrected
+        (src / "obsolete.pyc").unlink()
+        (src / "notes.txt").write_text("v2 fixed\n")
+        rc, out = run_cmd(["pack", "refresh-range", str(stick), "--force"])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("replacing stale refresh-range", out)
+        pack_dir = stick / "keystone-ranges" / "refresh-range"
+        self.assertFalse((pack_dir / "obsolete.pyc").exists(),
+                         "a file the old pack carried must not survive a refresh")
+        self.assertEqual((pack_dir / "notes.txt").read_text(), "v2 fixed\n")
+        rc, out = run_cmd(["verify", str(stick)])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("verify refresh-range: OK", out)
+
+    def test_pack_force_never_touches_anything_else_on_the_stick(self):
+        src = self._refresh_fixture()
+        stick = self._stick("s")
+        # stand-ins for the irreplaceable business backups the real range stick
+        # carries beside keystone-ranges/ — a refresh must leave them alone
+        (stick / "Quest Rockhampton.MYO").write_bytes(b"accounting data")
+        (stick / "TEMPLATES").mkdir()
+        (stick / "TEMPLATES" / "invoice.doc").write_text("template\n")
+
+        def others():
+            return {str(p.relative_to(stick)): usbstick._sha256(p)
+                    for p in sorted(stick.rglob("*"))
+                    if p.is_file() and "keystone-ranges" not in p.parts}
+
+        before = others()
+        run_cmd(["pack", "refresh-range", str(stick)])
+        (src / "notes.txt").write_text("v3\n")
+        rc, out = run_cmd(["pack", "refresh-range", str(stick), "--force"])
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(others(), before, "force touched files outside the range pack")
+
+    def test_pack_force_cannot_add_a_second_range(self):
+        stick = self._stick("t")
+        rc, out = run_cmd(["pack", "playable-range", str(stick)])
+        self.assertEqual(rc, 0, out)
+        rc, out = run_cmd(["pack", "secrets-range", str(stick), "--force"])
+        self.assertEqual(rc, 6, out)
+        self.assertIn("one range per stick", out)
+        self.assertEqual(sorted(p.name for p in (stick / "keystone-ranges").iterdir()),
+                         ["playable-range"], "force must not be a way around one-range-per-stick")
+        rc, out = run_cmd(["verify", str(stick)])
+        self.assertEqual(rc, 0, out)
 
     # --- plug and play ---------------------------------------------------------
 

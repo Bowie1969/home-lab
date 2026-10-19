@@ -109,6 +109,18 @@ already holds a different estate). Stick layout is
 `<mount>/keystone-ranges/<range_id>/` holding `RANGE_ID`, `manifest.sha256`
 (packed_at plus a per-file sha256) and the estate's own files, copied verbatim.
 
+Refresh a stale pack in place with `pack --force`:
+
+```bash
+./bin/packstick.sh glass-canary /media/will_cyber/GC-RANGE --force
+```
+
+It replaces **that range's directory only** and re-manifests it, so a file the
+old pack carried does not survive the refresh; `--force` is checked after the
+one-range-per-stick rule, so it can never be used to add a second range. Nothing
+else on the stick is touched — which matters because a range stick may hold
+unrelated data beside `keystone-ranges/`.
+
 Detection is by `/proc/mounts` device prefix: `/dev/sd*` (USB mass storage) and
 `/dev/mmcblk*`. Use USB sticks — the brain's built-in Realtek RTS5129 SD reader
 reports no media for every card tried, so the internal slot is a dead end.

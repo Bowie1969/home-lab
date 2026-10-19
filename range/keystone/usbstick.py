@@ -9,17 +9,18 @@ Stick layout (on any vfat/ext4 USB stick):
 
 Commands (run from range/, `python3 -m keystone.usbstick ...`):
 
-    pack <range_id> <mount>          export an estate onto a stick
+    pack <range_id> <mount> [--force]  export an estate onto a stick
     play [mount] [--no-wait]         verify a stick and run its estate
     load <mount> [--estate ID] [--force]   verify and import a stick's estate
     status [--mount PATH]            which stick holds which range
     verify <mount>                   re-hash a stick and check its manifest
 
 One range per stick, enforced by `pack`: a stick that already holds a different
-range is refused rather than appended to. `play` is the plug-and-play path —
-plug the stick in, run it, and the estate comes up on ephemeral localhost ports
-with its port map printed. It runs the estate straight off the stick, so nothing
-is copied into the git tree.
+range is refused rather than appended to, and `--force` only ever refreshes the
+range already on it. `play` is the plug-and-play path — plug the stick in, run
+it, and the estate comes up on ephemeral localhost ports with its port map
+printed. It runs the estate straight off the stick, so nothing is copied into
+the git tree.
 
 The git tree stays the source of truth; sticks are disposable deployable copies.
 Runs never write telemetry to the stick — pack and load are the only writers.
@@ -105,7 +106,7 @@ def list_mounted_sticks() -> List[Tuple[str, Path]]:
     return sticks
 
 
-def cmd_pack(range_id: str, mount: Path) -> int:
+def cmd_pack(range_id: str, mount: Path, force: bool = False) -> int:
     source = ESTATES_DIR / range_id
     if not source.is_dir():
         print(f"error: estate not found: {source}", file=sys.stderr)
@@ -113,16 +114,25 @@ def cmd_pack(range_id: str, mount: Path) -> int:
     if not mount.is_dir():
         print(f"error: stick mount not found: {mount}", file=sys.stderr)
         return 2
-    dest = _range_dir(mount, range_id)
-    if dest.exists():
-        print(f"error: stick already holds {range_id} (remove it first)", file=sys.stderr)
-        return 2
+    # Checked before any --force deletion: refreshing one range must never be
+    # the way a second range gets onto a stick.
     held = [r for r in _existing_packs(mount) if r != range_id]
     if held:
         print(f"error: stick already holds {', '.join(held)} — one range per stick. "
               f"Use a different stick, or remove {PACK_ROOT}/ from this one first.",
               file=sys.stderr)
         return 6
+    dest = _range_dir(mount, range_id)
+    if dest.exists():
+        if not force:
+            print(f"error: stick already holds {range_id} (pack --force to refresh it)",
+                  file=sys.stderr)
+            return 2
+        # Only this range's own directory goes. A stick may hold anything else —
+        # the 7.3G range stick carries irreplaceable business backups beside
+        # keystone-ranges/ — so nothing outside dest is ever touched.
+        shutil.rmtree(dest)
+        print(f"[usbstick] replacing stale {range_id} pack on {mount}")
     dest.mkdir(parents=True)
     shutil.copytree(source, dest, dirs_exist_ok=True, ignore=PACK_IGNORE)
     (_range_id_path(mount, range_id)).write_text(range_id + "\n", encoding="utf-8")
@@ -424,6 +434,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     pack = sub.add_parser("pack", help="export an estate onto a stick")
     pack.add_argument("range_id")
     pack.add_argument("mount", type=Path)
+    pack.add_argument("--force", action="store_true",
+                      help="replace this range's existing pack on the stick (refresh a stale one)")
     load = sub.add_parser("load", help="verify and import a stick's estate")
     load.add_argument("mount", type=Path)
     load.add_argument("--estate", default=None)
@@ -439,7 +451,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                       help="start, print the port map, then stop (smoke test)")
     args = parser.parse_args(argv)
     if args.command == "pack":
-        return cmd_pack(args.range_id, args.mount)
+        return cmd_pack(args.range_id, args.mount, args.force)
     if args.command == "load":
         return cmd_load(args.mount, args.estate, args.force)
     if args.command == "status":
