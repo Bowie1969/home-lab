@@ -273,14 +273,25 @@ def _detect_card() -> Tuple[Optional[Path], str]:
 
 
 def _load_services_module(range_dir: Path):
-    """Import a packed estate's services.py straight off the card."""
+    """Import a packed estate's services.py straight off the card.
+
+    Bytecode writing is suppressed for the import. Without it CPython drops a
+    ``__pycache__/services.cpython-3XX.pyc`` next to the module ON THE CARD,
+    which is an unexpected file as far as the manifest is concerned — a single
+    `play` would leave the card failing its own verification.
+    """
     path = range_dir / "services.py"
     if not path.is_file():
         return None
     name = f"keystone_card_{range_dir.name.replace('-', '_')}"
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 

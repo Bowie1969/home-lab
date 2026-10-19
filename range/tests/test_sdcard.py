@@ -273,6 +273,37 @@ class SdcardToolingTest(unittest.TestCase):
         self.assertIn("no services.py", out)
         self.assertIn("launch.sh", out)
 
+    def test_play_does_not_write_to_the_card(self):
+        """Running an estate off a card must not mutate the card.
+
+        Importing services.py from the card used to make CPython drop a
+        __pycache__/services.cpython-3XX.pyc beside it, so one `play` left the
+        card failing its own manifest as an unexpected file.
+        """
+        card = self._card("p")
+        rc, out = run_cmd(["pack", "playable-range", str(card)])
+        self.assertEqual(rc, 0, out)
+        pack_dir = card / "keystone-ranges" / "playable-range"
+        listing = lambda: sorted(
+            p.relative_to(pack_dir).as_posix() for p in pack_dir.rglob("*") if p.is_file())
+        before = listing()
+
+        # Force bytecode writing on for the duration: if the suppression in
+        # _load_services_module ever regresses, this test must actually catch it.
+        saved = sys.dont_write_bytecode
+        sys.dont_write_bytecode = False
+        try:
+            rc, out = run_cmd(["play", str(card), "--no-wait"])
+        finally:
+            sys.dont_write_bytecode = saved
+        self.assertEqual(rc, 0, out)
+
+        self.assertEqual(listing(), before, "play wrote to the card")
+        self.assertFalse((pack_dir / "__pycache__").exists())
+        rc, out = run_cmd(["verify", str(card)])
+        self.assertEqual(rc, 0, out)
+        self.assertIn("verify playable-range: OK", out)
+
     def test_play_errors_without_a_card(self):
         card = self._card("o")
         rc, out = run_cmd(["play", str(card), "--no-wait"])
