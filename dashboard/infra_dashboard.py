@@ -39,6 +39,7 @@ Hosts/keys are taken from the same environment variables as ``fleet_watcher``
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import os
 import random
@@ -701,7 +702,8 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd")
     srv = sub.add_parser("serve", help="run the dashboard HTTP server")
     srv.add_argument("--host", default="127.0.0.1")
-    srv.add_argument("--port", type=int, default=8794)
+    srv.add_argument("--port", type=int, default=8794,
+                     help="TCP port (0 picks a free one, printed on start)")
     srv.add_argument("--demo", action="store_true",
                      help="synthesise telemetry (no lab access needed)")
     srv.add_argument("--interval", type=float, default=3.0,
@@ -718,8 +720,17 @@ def main(argv: list[str] | None = None) -> int:
         port = getattr(args, "port", 8794)
         demo = getattr(args, "demo", False)
         interval = getattr(args, "interval", 3.0)
-        httpd = make_server(host, port, demo=demo, interval=interval)
-        where = f"http://{host}:{port}"
+        try:
+            httpd = make_server(host, port, demo=demo, interval=interval)
+        except OSError as exc:
+            if exc.errno == errno.EADDRINUSE:
+                print(f"[infra] port {port} on {host} is already in use. "
+                      f"Re-run with a different --port, or --port 0 to auto-pick a free one.",
+                      flush=True)
+                return 2
+            raise
+        actual_port = httpd.server_address[1]  # real port, even when --port 0
+        where = f"http://{host}:{actual_port}"
         print(f"[infra] serving {where}  (mode={'demo' if demo else 'live'})", flush=True)
         try:
             httpd.serve_forever()
