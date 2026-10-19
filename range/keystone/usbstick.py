@@ -290,6 +290,13 @@ def cmd_status(mount: Optional[Path]) -> int:
             print("[usbstick] no USB sticks detected (no /dev/mmcblk* or /dev/sd* mounts)")
             return 0
     for dev, mnt in sticks:
+        # Pulling a stick without unmounting leaves its /proc/mounts entry
+        # behind. Reporting that as "no range packs" reads as an empty stick
+        # when the device is simply gone, so say which of the two it is.
+        if dev.startswith("/dev/") and not Path(dev).exists():
+            print(f"[usbstick] {dev} ({mnt}): STALE MOUNT — device is gone; "
+                  f"umount {mnt} to clear it")
+            continue
         packs_root = mnt / PACK_ROOT
         if not packs_root.is_dir():
             print(f"[usbstick] {dev} ({mnt}): no keystone range packs")

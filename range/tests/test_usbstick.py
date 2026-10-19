@@ -177,6 +177,35 @@ class UsbstickToolingTest(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         self.assertIn("range=test-range", out)
 
+    def test_status_reports_a_stale_mount_from_a_pulled_stick(self):
+        """A stick pulled without unmounting must not read as an empty stick."""
+        dead_mount = self._stick("z")          # empty dir left behind by the pull
+        original = usbstick.list_mounted_sticks
+        usbstick.list_mounted_sticks = lambda: [("/dev/sdz9", dead_mount)]
+        try:
+            rc, out = run_cmd(["status"])
+        finally:
+            usbstick.list_mounted_sticks = original
+        self.assertEqual(rc, 0, out)
+        self.assertIn("STALE MOUNT", out)
+        self.assertIn("umount", out)
+        self.assertNotIn("no keystone range packs", out)
+
+    def test_status_still_reports_a_live_stick_normally(self):
+        src = self._diff_fixture()
+        stick = self._stick("z2")
+        run_cmd(["pack", "diff-range", str(stick)])
+        original = usbstick.list_mounted_sticks
+        # /dev/null always exists, so this entry reads as a live device
+        usbstick.list_mounted_sticks = lambda: [("/dev/null", stick)]
+        try:
+            rc, out = run_cmd(["status"])
+        finally:
+            usbstick.list_mounted_sticks = original
+        self.assertEqual(rc, 0, out)
+        self.assertIn("range=diff-range verify=OK", out)
+        self.assertNotIn("STALE MOUNT", out)
+
     def test_load_refuses_without_force(self):
         stick = self._stick("d")
         run_cmd(["pack", "test-range", str(stick)])
