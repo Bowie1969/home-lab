@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_lotl",
+  "target_node": "gc-staging",
+  "category": "lateral",
+  "parameters": ["TARGET", "PORT"],
+  "reused_for": ["gc-build"],
+  "notes": "whitelisted LotL enumeration; canary paths are identified and avoided"
+}

@@ -1,0 +1,140 @@
+{
+  "range": "glass-canary",
+  "title": "Glass Canary Labs — malware scripting & evasion range",
+  "zones": [
+    {
+      "id": "operators",
+      "label": "Red Team Platform"
+    },
+    {
+      "id": "staging",
+      "label": "GC Internal Staging · VLAN 50"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "Red Team Control Station",
+      "host": "Primary red-team workstation",
+      "type": "operator",
+      "zone": "operators",
+      "operator_platform": true,
+      "address": "192.168.0.10",
+      "state": "reachable",
+      "position": [8.0, 50.0]
+    },
+    {
+      "id": "gc-tripwire",
+      "label": "Tripwire Inventory Service",
+      "host": "gc-tripwire (610)",
+      "type": "web",
+      "zone": "staging",
+      "address": "10.50.0.30",
+      "state": "reachable",
+      "position": [40.0, 30.0]
+    },
+    {
+      "id": "gc-dropbox",
+      "label": "Ingestion Dropbox · Signature Check",
+      "host": "gc-dropbox (611)",
+      "type": "web",
+      "zone": "staging",
+      "address": "10.50.0.31",
+      "state": "reachable",
+      "position": [40.0, 60.0]
+    },
+    {
+      "id": "gc-staging",
+      "label": "Staging Node · LotL Exec",
+      "host": "gc-staging (612)",
+      "type": "workstation",
+      "zone": "staging",
+      "address": "10.50.0.32",
+      "state": "reachable",
+      "position": [70.0, 35.0]
+    },
+    {
+      "id": "gc-build",
+      "label": "Build Box · Honeytoken + Crown",
+      "host": "gc-build (613)",
+      "type": "workstation",
+      "zone": "staging",
+      "address": "10.50.0.33",
+      "state": "reachable",
+      "position": [70.0, 65.0],
+      "stores": [
+        "master signing key (crown)",
+        "honeytoken customer credit data"
+      ]
+    },
+    {
+      "id": "gc-c2",
+      "label": "Multi-Channel C2 · Beacon Filter",
+      "host": "gc-c2 (614)",
+      "type": "server",
+      "zone": "staging",
+      "address": "10.50.0.34",
+      "state": "reachable",
+      "position": [90.0, 30.0]
+    },
+    {
+      "id": "gc-crown",
+      "label": "Crown Vault · Receipt Claims",
+      "host": "gc-crown (615)",
+      "type": "server",
+      "zone": "staging",
+      "address": "10.50.0.35",
+      "state": "reachable",
+      "position": [90.0, 65.0],
+      "stores": [
+        "master signing key"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "src": "operator",
+      "dst": "gc-tripwire",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "public tripwire docs"
+    },
+    {
+      "src": "operator",
+      "dst": "gc-dropbox",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "ingestion submit"
+    },
+    {
+      "src": "gc-staging",
+      "dst": "gc-build",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "gc-staging",
+      "dst": "gc-c2",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "gc-build",
+      "dst": "gc-c2",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "gc-c2",
+      "dst": "gc-crown",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward"
+    }
+  ]
+}

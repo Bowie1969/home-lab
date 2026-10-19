@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_evasion",
+  "target_node": "gc-tripwire",
+  "category": "recon",
+  "parameters": ["TARGET"],
+  "reused_for": [],
+  "notes": "tripwire inventory read before any hostile action; evasion starts with intel"
+}

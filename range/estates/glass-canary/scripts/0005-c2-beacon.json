@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_c2",
+  "target_node": "gc-c2",
+  "category": "c2",
+  "parameters": ["HTTP_PORT", "TCP_PORT"],
+  "reused_for": [],
+  "notes": "naive HTTP beacon is refused by the UA filter; raw TCP channel carries the beacon"
+}

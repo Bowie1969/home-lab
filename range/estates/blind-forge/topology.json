@@ -1,0 +1,97 @@
+{
+  "range": "blind-forge",
+  "title": "Blind Forge Metalworks — blind injection / out-of-band exfiltration",
+  "zones": [
+    {
+      "id": "operators",
+      "label": "Red Team Platform"
+    },
+    {
+      "id": "forge",
+      "label": "Blind Forge Metalworks · VLAN 61"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "Red Team Control Station",
+      "host": "Primary red-team workstation",
+      "type": "operator",
+      "zone": "operators",
+      "operator_platform": true,
+      "address": "192.168.0.10",
+      "state": "reachable",
+      "position": [8.0, 50.0]
+    },
+    {
+      "id": "bf-sink",
+      "label": "OOB Collaborator Sink · Range-Provided OAST Stand-In",
+      "host": "bf-sink (642)",
+      "type": "server",
+      "zone": "operators",
+      "address": "10.61.0.12",
+      "state": "reachable",
+      "position": [30.0, 82.0],
+      "stores": [
+        "out-of-band hit log"
+      ]
+    },
+    {
+      "id": "bf-portal",
+      "label": "Public Quoting Portal · Blind Filter Injection",
+      "host": "bf-portal (640)",
+      "type": "web",
+      "zone": "forge",
+      "address": "10.61.0.10",
+      "state": "reachable",
+      "position": [45.0, 35.0]
+    },
+    {
+      "id": "bf-records",
+      "label": "Internal Signed-Drawing Records · Crown",
+      "host": "bf-records (641)",
+      "type": "server",
+      "zone": "forge",
+      "address": "10.61.0.11",
+      "state": "reachable",
+      "position": [85.0, 35.0],
+      "stores": [
+        "signed master drawing crown flag"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "src": "operator",
+      "dst": "bf-portal",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "only exposed ingress · TCP 80 · no response oracle"
+    },
+    {
+      "src": "operator",
+      "dst": "bf-sink",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "both",
+      "label": "register token + poll hit log"
+    },
+    {
+      "src": "bf-portal",
+      "dst": "bf-sink",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "notify() egress · the only channel that carries bytes out"
+    },
+    {
+      "src": "bf-portal",
+      "dst": "bf-records",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "fetch() blind SSRF · X-Forge-Token · portal-only route"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "range": "fork-and-knife",
+  "title": "Fork & Knife — ghost-kitchen supply-chain range",
+  "zones": [
+    {
+      "id": "operators",
+      "label": "Red Team Platform"
+    },
+    {
+      "id": "kitchen",
+      "label": "GhostKitchen SaaS · Prod + CI · VLAN 60"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "Red Team Control Station",
+      "host": "Primary red-team workstation",
+      "type": "operator",
+      "zone": "operators",
+      "operator_platform": true,
+      "address": "192.168.0.10",
+      "state": "reachable",
+      "position": [8.0, 50.0]
+    },
+    {
+      "id": "fk-devportal",
+      "label": "Developer / Status Portal · Git Mirror",
+      "host": "fk-devportal (630)",
+      "type": "web",
+      "zone": "kitchen",
+      "address": "10.60.0.10",
+      "state": "reachable",
+      "position": [40.0, 20.0],
+      "stores": [
+        "git commit history (leaks junior dev token + webhook secret)"
+      ]
+    },
+    {
+      "id": "fk-webhook",
+      "label": "CI Webhook · Build Queue",
+      "host": "fk-webhook (631)",
+      "type": "web",
+      "zone": "kitchen",
+      "address": "10.60.0.11",
+      "state": "reachable",
+      "position": [40.0, 55.0]
+    },
+    {
+      "id": "fk-runner",
+      "label": "CI Runner · Delayed Exec",
+      "host": "fk-runner (632)",
+      "type": "server",
+      "zone": "kitchen",
+      "address": "10.60.0.12",
+      "state": "reachable",
+      "position": [72.0, 37.0],
+      "stores": [
+        "SSH deploy token (dropped into results)"
+      ]
+    },
+    {
+      "id": "fk-vault",
+      "label": "Prod Billing Vault · Crown",
+      "host": "fk-vault (633)",
+      "type": "server",
+      "zone": "kitchen",
+      "address": "10.60.0.13",
+      "state": "reachable",
+      "position": [72.0, 75.0],
+      "stores": [
+        "KEYSTONE{forkknife-crown-<rot>}"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "src": "operator",
+      "dst": "fk-devportal",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "public status page + git mirror"
+    },
+    {
+      "src": "operator",
+      "dst": "fk-webhook",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "push build job (weak webhook secret)"
+    },
+    {
+      "src": "fk-devportal",
+      "dst": "fk-webhook",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "leaked secret + token enable the push"
+    },
+    {
+      "src": "fk-webhook",
+      "dst": "fk-runner",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "queued job → delayed timer exec"
+    },
+    {
+      "src": "fk-runner",
+      "dst": "fk-vault",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "SSH deploy token → prod billing"
+    },
+    {
+      "src": "operator",
+      "dst": "fk-vault",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "present deploy token → crown flag"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_persist",
+  "target_node": "gc-build",
+  "category": "persist",
+  "parameters": ["TARGET", "PORT", "TOKEN"],
+  "reused_for": ["gc-staging"],
+  "notes": "persistence marker planted through the whitelisted exec on both nodes"
+}

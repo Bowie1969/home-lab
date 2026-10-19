@@ -1,0 +1,84 @@
+{
+  "range": "cold-chain",
+  "title": "Cold Chain — vaccine cold-storage warehouse (IoT/protocol-bridging)",
+  "zones": [
+    {
+      "id": "operators",
+      "label": "Red Team Platform"
+    },
+    {
+      "id": "warehouse",
+      "label": "Cold-Chain Warehouse · VLAN 51"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "operator",
+      "label": "Red Team Control Station",
+      "host": "Primary red-team workstation",
+      "type": "operator",
+      "zone": "operators",
+      "operator_platform": true,
+      "address": "192.168.0.10",
+      "state": "reachable",
+      "position": [8.0, 50.0]
+    },
+    {
+      "id": "cc-portal",
+      "label": "Shipment-Status Portal",
+      "host": "cc-portal (620)",
+      "type": "web",
+      "zone": "warehouse",
+      "address": "10.51.0.10",
+      "state": "reachable",
+      "position": [40.0, 30.0]
+    },
+    {
+      "id": "cc-mqtt",
+      "label": "MQTT Telemetry Broker",
+      "host": "cc-mqtt (621)",
+      "type": "server",
+      "zone": "warehouse",
+      "address": "10.51.0.11",
+      "state": "reachable",
+      "position": [65.0, 50.0]
+    },
+    {
+      "id": "cc-plc",
+      "label": "Freezer PLC · Calibration Crown",
+      "host": "cc-plc (622)",
+      "type": "server",
+      "zone": "warehouse",
+      "address": "10.51.0.12",
+      "state": "reachable",
+      "position": [90.0, 30.0],
+      "stores": [
+        "calibration crown flag"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "src": "operator",
+      "dst": "cc-portal",
+      "kind": "network",
+      "state": "unknown",
+      "direction": "forward",
+      "label": "only exposed ingress · TCP 80"
+    },
+    {
+      "src": "cc-portal",
+      "dst": "cc-mqtt",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    },
+    {
+      "src": "cc-mqtt",
+      "dst": "cc-plc",
+      "kind": "pivot-possible",
+      "state": "unknown",
+      "direction": "both"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_generate",
+  "target_node": "gc-dropbox",
+  "category": "initial-access",
+  "parameters": ["TARGET"],
+  "reused_for": [],
+  "notes": "polymorphic payload clears the static signature check; naive payloads are quarantined"
+}

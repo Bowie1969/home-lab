@@ -1,0 +1,8 @@
+{
+  "mcp_tool": "malware_c2",
+  "target_node": "gc-crown",
+  "category": "crown-id",
+  "parameters": ["C2_PORT", "CROWN_PORT", "TOKEN", "KEY"],
+  "reused_for": ["gc-c2"],
+  "notes": "classified exfil skips the honeytoken, moves the real key, and claims the receipt at the vault"
+}
