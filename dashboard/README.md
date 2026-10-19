@@ -50,14 +50,17 @@ Internet → ASUS edge → hEX firewall → { Brain Box (+ Proxmox guests),
 ```
 
 ```sh
-cd ~/Projects/lab-dashboard
-python3 -m infra_dashboard serve --host 127.0.0.1 --port 8794   # live lab
-python3 -m infra_dashboard serve --demo                          # no lab needed
-python3 -m infra_dashboard snapshot --demo                       # print one state as JSON
+# Run it by file path — works from any directory (the server finds its HTML
+# relative to itself); you do not need to cd anywhere or set PYTHONPATH.
+python3 dashboard/infra_dashboard.py serve --host 127.0.0.1 --port 8794   # live lab
+python3 dashboard/infra_dashboard.py serve --demo                          # no lab needed
+python3 dashboard/infra_dashboard.py snapshot --demo                       # print one state as JSON
 ```
 
 Open **http://127.0.0.1:8794**. Port **8794** sits next to the run monitor's
-8793; change it with `--port`.
+8793; change it with `--port`. (`python3 -m infra_dashboard …` also works, but
+only from inside the `dashboard/` directory — the path form above does not
+care where you are.)
 
 **Truth over optimism.** Each source is polled independently and in parallel
 (one dead box never blanks the others). Every reading carries its own
@@ -92,7 +95,7 @@ from denied. The `--demo` engine synthesises the full catalogue so every
 colour and pulse is exercised when the live lab is out of reach.
 
 ```sh
-python3 -m unittest test_infra_dashboard -v
+cd dashboard && python3 -m unittest test_infra_dashboard -v
 ```
 
 ## Minecraft agent NPCs
