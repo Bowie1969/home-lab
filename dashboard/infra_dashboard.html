@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infrastructure Truth Map</title>
+<style>
+  :root{
+    --bg:#f1f5f9; --panel:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --canvas:#ffffff; --canvas-grid:#eef2f7;
+    /* node conditions */
+    --healthy:#16a34a; --activity:#2563eb; --warning:#d97706; --alert:#dc2626;
+    --unavailable:#94a3b8; --info:#64748b;
+    /* traffic classes */
+    --wan:#ea580c; --transit:#475569; --management:#2563eb; --workload:#0d9488;
+    --sensor:#7c3aed; --allowed:#16a34a; --blocked:#dc2626;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0b1220; --panel:#111a2b; --ink:#e7eef9; --muted:#8aa0bd; --line:#223049;
+      --canvas:#0e1626; --canvas-grid:#15203542;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1220; --panel:#111a2b; --ink:#e7eef9; --muted:#8aa0bd; --line:#223049;
+    --canvas:#0e1626; --canvas-grid:#152035;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--panel);
+    border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px}
+  header .sub{color:var(--muted);font-size:12px}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.4px}
+  .badge.live{background:#dcfce7;color:#166534}
+  .badge.demo{background:#fef3c7;color:#92400e}
+  .spacer{flex:1}
+  .clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;vertical-align:middle}
+  #conn{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+
+  .strip{display:flex;gap:10px;padding:10px 18px;overflow-x:auto;background:var(--panel);border-bottom:1px solid var(--line)}
+  .scard{flex:1 0 170px;min-width:170px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
+    background:var(--panel);position:relative;cursor:pointer;transition:border-color .15s}
+  .scard:hover{border-color:var(--muted)}
+  .scard .top{display:flex;align-items:center;gap:7px;font-weight:600}
+  .scard .role{color:var(--muted);font-size:11px;margin-top:1px}
+  .scard .meta{color:var(--muted);font-size:11px;margin-top:6px;font-variant-numeric:tabular-nums}
+  .scard.sel{outline:2px solid var(--activity);outline-offset:1px}
+
+  main{display:grid;grid-template-columns:1fr 340px;gap:0;height:calc(100vh - 170px);min-height:420px}
+  @media (max-width:900px){ main{grid-template-columns:1fr;height:auto} }
+  .canvas-wrap{position:relative;background:var(--canvas);overflow:hidden}
+  #map{width:100%;height:100%;display:block;min-height:380px}
+  aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px}
+  @media (max-width:900px){ aside{border-left:none;border-top:1px solid var(--line)} }
+
+  .sidehead{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:2px 0 8px}
+  .insp .title{font-size:16px;font-weight:650;display:flex;align-items:center;gap:8px}
+  .insp .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin-top:10px;font-size:12.5px}
+  .insp .kv dt{color:var(--muted)}
+  .insp .kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;word-break:break-word}
+  .reasons{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+  .reasons li{font-size:12px;border-left:3px solid var(--line);padding:3px 8px;background:var(--bg);border-radius:0 6px 6px 0}
+  .hint{color:var(--muted);font-size:13px;margin-top:6px}
+
+  .legend{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+  .legrow{display:flex;align-items:center;gap:8px;font-size:12px;margin:5px 0}
+  .legrow .sw{width:14px;height:14px;border-radius:4px;flex:none}
+  .legline{width:46px;height:0;border:none;flex:none}
+  .legsvg{width:50px;height:12px;flex:none}
+  .etgrid{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .etag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:999px;color:#fff}
+
+  .events{height:140px;overflow-y:auto;background:var(--panel);border-top:1px solid var(--line);padding:6px 0}
+  .ev{display:grid;grid-template-columns:62px 118px 1fr auto;gap:10px;align-items:baseline;
+    padding:4px 18px;font-size:12.5px;border-left:3px solid transparent}
+  .ev:hover{background:var(--bg)}
+  .ev .t{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+  .ev .tag{font-weight:700;font-size:10.5px;padding:2px 7px;border-radius:999px;color:#fff;justify-self:start}
+  .ev .d{color:var(--ink)}
+  .ev .n{color:var(--muted);font-size:11px}
+
+  /* ---- animated traffic pulses ---- */
+  .base{stroke:var(--line);stroke-width:2;fill:none}
+  .pulse{fill:none;stroke-width:2.4;stroke-linecap:round;opacity:.95}
+  .pulse.idle{opacity:.18;animation:none !important;stroke-dasharray:2 6}
+  @keyframes flow{to{stroke-dashoffset:-200}}
+  @keyframes flowrev{to{stroke-dashoffset:200}}
+  .t-wan       {stroke:var(--wan);        stroke-dasharray:10 6; animation:flow .7s linear infinite}
+  .t-transit   {stroke:var(--transit);    stroke-dasharray:4 9;  animation:flow 1.5s linear infinite}
+  .t-management{stroke:var(--management); stroke-dasharray:2 11; stroke-width:2.2; animation:flow 2.6s linear infinite}
+  .t-workload  {stroke:var(--workload);   stroke-dasharray:9 7;  animation:flow 1.1s linear infinite}
+  .t-sensor    {stroke:var(--sensor);     stroke-dasharray:1 8;  stroke-width:3; animation:flow 2s linear infinite}
+  .t-allowed   {stroke:var(--allowed);    stroke-dasharray:6 7;  animation:flow 1.4s linear infinite}
+  .t-blocked   {stroke:var(--blocked);    stroke-dasharray:3 4;  stroke-width:2.6; animation:flowrev .5s linear infinite}
+
+  .node{cursor:pointer}
+  .node .nbody{stroke-width:2.5;transition:filter .2s}
+  .node text{font-weight:600;fill:var(--ink)}
+  .node .naddr{font-weight:400;fill:var(--muted);font-size:10px}
+  .node.sel .nbody{stroke-width:3.5}
+  .glow-alert{filter:drop-shadow(0 0 7px var(--alert))}
+  .glow-warning{filter:drop-shadow(0 0 5px var(--warning))}
+  @keyframes breathe{0%,100%{opacity:1}50%{opacity:.55}}
+  .ring-alert{animation:breathe 1.1s ease-in-out infinite}
+  .blocked-hit{animation:breathe .6s ease-in-out infinite}
+</style>
+</head>
+<body>
+<header>
+  <h1>Infrastructure Truth Map</h1>
+  <span id="mode" class="badge live">LIVE</span>
+  <span class="sub" id="summary">connecting…</span>
+  <span class="spacer"></span>
+  <span id="conn"><span class="dot" style="background:var(--muted)"></span><span id="conntxt">starting</span></span>
+  <span class="clock" id="clock">—</span>
+</header>
+
+<div class="strip" id="strip"></div>
+
+<main>
+  <div class="canvas-wrap">
+    <svg id="map" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" aria-label="topology"></svg>
+  </div>
+  <aside>
+    <div class="sidehead">Inspector</div>
+    <div class="insp" id="insp"><div class="hint">Select a node or source card. Each node is coloured by its highest current security condition; every colour and pulse here traces back to a fresh reading.</div></div>
+
+    <div class="legend">
+      <div class="sidehead">Node condition</div>
+      <div id="leg-cond"></div>
+      <div class="sidehead" style="margin-top:12px">Traffic (pulse direction = flow)</div>
+      <div id="leg-traffic"></div>
+      <div class="sidehead" style="margin-top:12px">Security event types</div>
+      <div class="etgrid" id="leg-events"></div>
+    </div>
+  </aside>
+</main>
+
+<div class="events" id="events"></div>
+
+<script>
+"use strict";
+const COND = {healthy:"var(--healthy)",activity:"var(--activity)",warning:"var(--warning)",
+  alert:"var(--alert)",unavailable:"var(--unavailable)",info:"var(--info)"};
+const SEV_COND = {info:"info",activity:"activity",warning:"warning",alert:"alert"};
+const SVGNS = "http://www.w3.org/2000/svg";
+let STATE = null, selected = null;
+
+// ---- layout: tier (x) + distribute within tier (y) ----
+const TIER_X = {0:80, 1:255, 2:440, 3:660, 4:905};
+function layout(nodes){
+  const byTier = {};
+  nodes.forEach(n => (byTier[n.tier] ||= []).push(n));
+  const pos = {};
+  const H = 560, pad = 70;
+  for(const tier in byTier){
+    const col = byTier[tier];
+    const n = col.length;
+    col.forEach((node,i) => {
+      const y = n===1 ? H/2 : pad + (H-2*pad)*(i/(n-1));
+      pos[node.id] = {x: TIER_X[tier] ?? 905, y};
+    });
+  }
+  return pos;
+}
+
+function el(tag, attrs={}, parent=null){
+  const e = document.createElementNS(SVGNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function path(x1,y1,x2,y2){
+  const dx=(x2-x1)*0.5;
+  return `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+}
+
+// map a raw IP (from a blocked flow) to a node, so blocked links land somewhere real.
+function ipToNode(ip){
+  if(!ip) return "hex";
+  if(ip.startsWith("10.10.66.")) return "thisbox";       // attack / operator seat
+  if(ip.startsWith("10.10.0."))  return "hex";            // mgmt interface
+  if(ip.startsWith("10.50.0.") || ip.startsWith("10.10.20.")) return "pi"; // corp
+  if(ip.startsWith("100.") || ip.startsWith("192.168.0.")) return "asus";
+  if(/^\d+\.\d+\.\d+\.\d+$/.test(ip) && !ip.startsWith("10.")) return "wan"; // public
+  return "hex";
+}
+
+function render(){
+  if(!STATE) return;
+  const svg = document.getElementById("map");
+  svg.innerHTML = "";
+  const pos = layout(STATE.nodes);
+
+  // defs: grid + arrow
+  const defs = el("defs",{},svg);
+  // subtle dotted grid
+  const bg = el("rect",{x:0,y:0,width:1000,height:560,fill:"var(--canvas)"},svg);
+
+  // --- links (base + animated pulse) ---
+  const gl = el("g",{},svg);
+  STATE.links.forEach(L => {
+    const a = pos[L.source], b = pos[L.target];
+    if(!a || !b) return;
+    const d = path(a.x,a.y,b.x,b.y);
+    el("path",{d, class:"base"}, gl);
+    const p = el("path",{d, class:`pulse t-${L.traffic} ${L.active?"":"idle"}`}, gl);
+    p.dataset.traffic = L.traffic;
+  });
+
+  // --- blocked overlay flows (red, deflecting off the firewall) ---
+  (STATE.blocked||[]).forEach((f,i) => {
+    const a = pos[ipToNode(f.src)], b = pos[ipToNode(f.dst)];
+    if(!a||!b) return;
+    // bow the arc so overlapping blocks are distinguishable
+    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2 - 34 - (i%3)*14;
+    const d = `M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`;
+    el("path",{d, class:"pulse t-blocked"}, gl);
+    // a little "blocked" marker mid-arc
+    const m = el("g",{class:"blocked-hit",transform:`translate(${mx},${my})`}, gl);
+    el("circle",{r:6,fill:"var(--blocked)",opacity:.9}, m);
+    el("line",{x1:-3,y1:-3,x2:3,y2:3,stroke:"#fff","stroke-width":1.6}, m);
+    el("line",{x1:-3,y1:3,x2:3,y2:-3,stroke:"#fff","stroke-width":1.6}, m);
+  });
+
+  // --- nodes ---
+  const gn = el("g",{},svg);
+  STATE.nodes.forEach(n => {
+    const p = pos[n.id]; if(!p) return;
+    const color = COND[n.condition] || COND.info;
+    const isGuest = n.type==="guest", isCloud = n.type==="cloud";
+    const r = isGuest? 15 : (isCloud? 20 : 24);
+    const g = el("g",{class:`node ${selected===n.id?"sel":""}`, transform:`translate(${p.x},${p.y})`}, gn);
+    g.addEventListener("click", ()=>{selected=n.id; render(); showInspector();});
+
+    if(isCloud){
+      el("circle",{r, class:"nbody", fill:"var(--panel)", stroke:color}, g);
+      el("text",{y:5,"text-anchor":"middle","font-size":13}, g).textContent="☁";
+    } else {
+      const ringCls = n.condition==="alert" ? "ring-alert" : "";
+      el("circle",{r:r+5, fill:"none", stroke:color, "stroke-width":1.5, opacity:.35, class:ringCls}, g);
+      el("circle",{r, class:`nbody ${n.condition==="alert"?"glow-alert":(n.condition==="warning"?"glow-warning":"")}`,
+        fill:"var(--panel)", stroke:color}, g);
+      el("text",{y:5,"text-anchor":"middle","font-size":isGuest?11:14,fill:color,"font-weight":700}, g)
+        .textContent = glyph(n.type);
+    }
+    const lab = el("text",{y:r+16,"text-anchor":"middle","font-size":isGuest?10:12}, g);
+    lab.textContent = n.label;
+    if(n.source && STATE.sources[n.source]){
+      const addr = STATE.sources[n.source].address;
+      if(addr){ el("text",{y:r+29,"text-anchor":"middle",class:"naddr"}, g).textContent = addr; }
+    }
+  });
+
+  updateChrome();
+  renderStrip();
+  renderEvents();
+  renderLegend();
+  if(selected) showInspector();
+}
+
+function glyph(t){
+  return ({router:"⇄",firewall:"▣",host:"▤",operator:"◉",sensor:"◎",guest:"•"})[t] || "●";
+}
+
+function updateChrome(){
+  document.getElementById("summary").textContent = STATE.summary;
+  const m = document.getElementById("mode");
+  m.className = "badge "+STATE.mode; m.textContent = STATE.mode.toUpperCase();
+  document.getElementById("clock").textContent = "updated "+fmt(STATE.generated_at);
+}
+
+function renderStrip(){
+  const strip = document.getElementById("strip");
+  strip.innerHTML = "";
+  for(const id in STATE.sources){
+    const s = STATE.sources[id];
+    const node = STATE.nodes.find(n=>n.source===id);
+    const cond = node? node.condition : (s.status==="live"?"healthy":"unavailable");
+    const c = document.createElement("div");
+    c.className = "scard"+(selected===(node&&node.id)?" sel":"");
+    c.innerHTML = `<div class="top"><span class="dot" style="background:${COND[cond]}"></span>${s.label}</div>
+      <div class="role">${s.role||""}</div>
+      <div class="meta">${s.status==="live"?"live":"unavailable"} · ${s.latency_ms!=null?s.latency_ms+"ms":"—"}<br>${s.address||""} · ${fmt(s.collected_at)}</div>`;
+    if(node) c.addEventListener("click", ()=>{selected=node.id;render();showInspector();});
+    strip.appendChild(c);
+  }
+}
+
+function renderEvents(){
+  const box = document.getElementById("events");
+  box.innerHTML = "";
+  STATE.events.forEach(e => {
+    const row = document.createElement("div");
+    row.className = "ev";
+    row.style.borderLeftColor = COND[SEV_COND[e.severity]] || COND.info;
+    row.innerHTML = `<span class="t">${fmt(e.ts)}</span>
+      <span class="tag" style="background:${COND[SEV_COND[e.severity]]}">${e.label}</span>
+      <span class="d">${escape_(e.detail)} <span class="n">· ${e.node}</span></span>`;
+    row.addEventListener("click", ()=>{selected=e.node;render();showInspector();});
+    box.appendChild(row);
+  });
+}
+
+function showInspector(){
+  const box = document.getElementById("insp");
+  const n = STATE.nodes.find(x=>x.id===selected);
+  if(!n){ box.innerHTML = `<div class="hint">Select a node or source card.</div>`; return; }
+  const s = n.source ? STATE.sources[n.source] : null;
+  const color = COND[n.condition] || COND.info;
+  const myEvents = STATE.events.filter(e=>e.node===n.id);
+  let kv = "";
+  if(s){
+    kv += row("Role", s.role);
+    kv += row("Address", s.address);
+    kv += row("Status", s.status);
+    kv += row("Collected", fmt(s.collected_at));
+    kv += row("Latency", s.latency_ms!=null? s.latency_ms+" ms":"—");
+    for(const k in (s.counters||{})) kv += row(k.replace(/_/g," "), s.counters[k]);
+    for(const k in (s.facts||{})) kv += row(k.replace(/_/g," "), s.facts[k]);
+  } else if(n.type==="guest"){
+    kv += row("vmid", n.vmid);
+    kv += row("Status", n.guest_status);
+    kv += row("Host", "Brain Box");
+  } else {
+    kv += row("Type", n.type);
+  }
+  box.innerHTML = `
+    <div class="title"><span class="dot" style="background:${color};width:12px;height:12px"></span>${n.label}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">condition:
+      <b style="color:${color};text-transform:uppercase">${n.condition}</b></div>
+    <dl class="kv">${kv}</dl>
+    <div class="sidehead" style="margin-top:14px">Why this colour</div>
+    <ul class="reasons">${(n.reasons||[]).map(r=>`<li>${escape_(r)}</li>`).join("") || '<li>reporting, no current events</li>'}</ul>
+    ${myEvents.length? `<div class="sidehead" style="margin-top:14px">Recent events</div>
+      <ul class="reasons">${myEvents.slice(0,8).map(e=>`<li style="border-left-color:${COND[SEV_COND[e.severity]]}"><b>${e.label}</b> — ${escape_(e.detail)} <span class="n">${fmt(e.ts)}</span></li>`).join("")}</ul>`:""}`;
+}
+function row(k,v){ return v===undefined||v===null||v===""?"":`<dt>${k}</dt><dd>${escape_(String(v))}</dd>`; }
+
+function renderLegend(){
+  const conds = [["healthy","healthy — reporting, no events"],["activity","activity — live traffic / lifecycle"],
+    ["warning","warning — recon / probe / resource"],["alert","alert — block / breach / intrusion"],
+    ["unavailable","unavailable — poll failed (not stale)"]];
+  document.getElementById("leg-cond").innerHTML = conds.map(([c,t])=>
+    `<div class="legrow"><span class="sw" style="background:${COND[c]}"></span>${t}</div>`).join("");
+
+  const tr = [["wan","wan — internet ↔ edge"],["transit","transit — edge ↔ firewall"],
+    ["management","management — SSH / telemetry"],["workload","workload — guest traffic"],
+    ["sensor","sensor — Pi ICMP/ARP watch"],["blocked","blocked — firewall drop"]];
+  document.getElementById("leg-traffic").innerHTML = tr.map(([c,t])=>
+    `<div class="legrow"><svg class="legsvg" viewBox="0 0 50 12"><path d="M2,6 L48,6" class="pulse t-${c}"/></svg>${t}</div>`).join("");
+
+  const et = (STATE.legend&&STATE.legend.event_types)||{};
+  const seen = {};
+  document.getElementById("leg-events").innerHTML = Object.keys(et)
+    .filter(k=>!["healthy","traffic"].includes(k))
+    .map(k=>{const sev=et[k].severity; return `<span class="etag" title="${sev}" style="background:${COND[SEV_COND[sev]]}">${et[k].label}</span>`;})
+    .join("");
+}
+
+function fmt(iso){ if(!iso) return "—"; const d=new Date(iso); return isNaN(d)?iso:
+  d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
+function escape_(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---- live data: SSE with polling fallback ----
+function setConn(ok, txt){
+  document.querySelector("#conn .dot").style.background = ok? "var(--healthy)":"var(--alert)";
+  document.getElementById("conntxt").textContent = txt;
+}
+function apply(data){ STATE = data; render(); }
+
+let pollTimer = null;
+function startPolling(){
+  if(pollTimer) return;
+  const tick = ()=>fetch("/api/state",{cache:"no-store"}).then(r=>r.json())
+    .then(d=>{setConn(true,"polling");apply(d);}).catch(()=>setConn(false,"offline"));
+  tick(); pollTimer = setInterval(tick, 3000);
+}
+function start(){
+  if(!window.EventSource){ startPolling(); return; }
+  let es;
+  try{ es = new EventSource("/api/stream"); }catch(_){ startPolling(); return; }
+  es.onopen = ()=>setConn(true,"live stream");
+  es.onmessage = ev=>{ try{ apply(JSON.parse(ev.data)); setConn(true,"live stream"); }catch(_){} };
+  es.onerror = ()=>{ setConn(false,"stream lost — polling"); es.close(); startPolling(); };
+}
+start();
+</script>
+</body>
+</html>

@@ -37,6 +37,64 @@ were both avoided. Re-check with `ss -ltn | grep 8793` before changing it.
 
 For local-only testing you can also bind `--host 127.0.0.1`.
 
+## Infrastructure Truth Map (`infra_dashboard.py`)
+
+A deliberately small sibling to the run monitor above. Where `server.py`
+replays a run's telemetry files, `infra_dashboard.py` asks the five
+infrastructure sources *directly*, every poll, and shows only what they report
+right now:
+
+```
+Internet → ASUS edge → hEX firewall → { Brain Box (+ Proxmox guests),
+                                         this operator box, Raspberry Pi }
+```
+
+```sh
+cd ~/Projects/lab-dashboard
+python3 -m infra_dashboard serve --host 127.0.0.1 --port 8794   # live lab
+python3 -m infra_dashboard serve --demo                          # no lab needed
+python3 -m infra_dashboard snapshot --demo                       # print one state as JSON
+```
+
+Open **http://127.0.0.1:8794**. Port **8794** sits next to the run monitor's
+8793; change it with `--port`.
+
+**Truth over optimism.** Each source is polled independently and in parallel
+(one dead box never blanks the others). Every reading carries its own
+`collected_at`, and a failed poll renders as `unavailable` (grey) with a
+`source-unreachable` event — it is **never** back-filled with the last good
+value. All polls are read-only and reuse the proven paths from
+`scripts/fleet_watcher.py`; the attack→CORP SSH block stays intact (the Pi is
+watched from the hEX by ICMP/ARP, not by weakening segmentation).
+
+| Source | How it is reached | Telemetry |
+|--------|-------------------|-----------|
+| **ASUS edge** | SSH `ASUS_HOST` (key `ASUS_KEY`) | uptime, DHCP leases, edge drops → WAN probes |
+| **hEX firewall** | SSH `HEX_HOST` **via the Brain jump** (`BRAIN_HOST`) | conntrack, firewall drops → scan / brute-force / segmentation / IDS events |
+| **Brain Box** | SSH `BRAIN_HOST` (key `BRAIN_KEY`) | `pct`/`qm` guest counts + live guests, loadavg |
+| **This box** | local counters | podman / libvirt / loadavg |
+| **Raspberry Pi** | hEX ICMP/ARP via the Brain jump (`PI_IP`) | reachability + MAC on the CORP segment |
+
+Hosts and keys come from the same environment variables as `fleet_watcher.py`,
+so the two agree. Override any of them before launch, e.g.
+`HEX_HOST=root@10.10.0.1 BRAIN_HOST=root@192.168.0.240 python3 -m infra_dashboard serve`.
+
+**Event-driven colour.** Each node takes the colour of its highest *current*
+security condition — `healthy` (green) · `activity` (blue) · `warning` (amber)
+· `alert` (red) · `unavailable` (grey) — and the inspector explains the colour
+by listing the events behind it. Security events are typed and detailed
+(WAN probe, port scan, brute force, segmentation breach, IDS signature, new
+device, DNS anomaly, conntrack surge, CPU pressure, guest start/stop, link
+down, …). Links pulse in a pattern keyed to their traffic class — `wan`,
+`transit`, `management`, `workload`, `sensor`, `allowed`, and `blocked`
+(firewall drops, drawn as red deflecting arcs) — so a glance tells allowed
+from denied. The `--demo` engine synthesises the full catalogue so every
+colour and pulse is exercised when the live lab is out of reach.
+
+```sh
+python3 -m unittest test_infra_dashboard -v
+```
+
 ## Minecraft agent NPCs
 
 `minecraft-mod/` contains a Fabric 26.3 mod that turns registered AI agents
@@ -391,6 +449,9 @@ signal remain as static topology only.
 lab-dashboard/
   server.py              stdlib http.server + SSE backend (RangeWatcher, DemoPlayer)
   index.html / app.js / style.css   the dashboard itself
+  infra_dashboard.py     simple "truth map": direct, always-current device polls
+  infra_dashboard.html   its single-file SVG page (event colours + traffic pulses)
+  test_infra_dashboard.py
   demo/topology.json     12-node sample topology (attacker/dmz/corp/data)
   demo/events.jsonl      scripted 6-flag run, replayed on a loop
   scripts/emit_event.py  helper for keystone-range producers
