@@ -1026,6 +1026,23 @@ function renderRunCard(snapshot) {
   $('run-range').textContent = status.range || '—';
   $('run-id').textContent = status.run_id || '—';
   $('run-model').textContent = status.model || '—';
+  // Where the board's topology came from when no run is active. An inserted
+  // range card outranks the checked-out build plan, so the viewer can tell
+  // whether they are looking at this lab or at a foreign estate on a stick.
+  const sourcePill = $('run-source-pill');
+  const source = status.topology_source;
+  if (source === 'card' || source === 'build') {
+    sourcePill.hidden = false;
+    sourcePill.textContent = source === 'card' ? 'CARD' : 'BUILD PLAN';
+    sourcePill.className = 'pill ' + (source === 'card' ? 'pill-card' : 'pill-idle');
+    sourcePill.title = source === 'card'
+      ? 'Topology read from the inserted range card'
+      : 'Topology read from this lab\'s Keystone build plan';
+  } else {
+    sourcePill.hidden = true;
+    sourcePill.className = 'pill pill-idle';
+    sourcePill.title = '';
+  }
   // Score widget — real Keystone scorer output (status.score / status.score_max),
   // with a per-category breakdown as a tooltip when present.
   const score = status.score;

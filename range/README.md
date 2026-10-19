@@ -83,6 +83,49 @@ owner command and does not block rootless bring-up. The generated table replaces
 only Keystone rules and preserves unrelated host/Podman rules. Re-run launch
 after a reboot; no automatic range startup or persistent host firewall was added.
 
+## Range cards (SD/USB packs)
+
+Each estate also ships as a **self-contained card pack**, so swapping the stick
+swaps the range. The git tree stays the source of truth; a card is a disposable,
+verifiable copy of one estate.
+
+```bash
+./bin/packcard.sh blind-forge /media/will_cyber/65A0-E7B1  # export one estate
+python3 -m keystone.sdcard status                          # which card holds what
+python3 -m keystone.sdcard verify /media/will_cyber/65A0-E7B1
+./bin/playcard.sh                                          # verify + run off the card
+./bin/loadcard.sh /media/will_cyber/65A0-E7B1              # import into estates/
+```
+
+`play` auto-detects the mounted card, re-hashes it against `manifest.sha256`,
+imports `services.py` **in place**, and brings the estate up on ephemeral
+localhost ports with its port map printed. Nothing is copied into the tree and
+nothing is written back to the card — `pack` and `load` are the only writers, so
+a card stays byte-identical across any number of plays. A failed verify means a
+tampered or partially-written card, and `play` refuses rather than half-running.
+
+**One range per card**, enforced at the writer (`pack` exits 6 on a card that
+already holds a different estate). Card layout is
+`<mount>/keystone-ranges/<range_id>/` holding `RANGE_ID`, `manifest.sha256`
+(packed_at plus a per-file sha256) and the estate's own files, copied verbatim.
+
+| estate | range | `play` off a card |
+|--------|-------|-------------------|
+| `blind-forge` | blind injection / out-of-band exfil — no response oracle at all | yes |
+| `cold-chain` | HTTP → MQTT → Modbus protocol bridging, vaccine cold storage | yes |
+| `fork-and-knife` | ghost-kitchen supply chain, second-order delayed execution | yes |
+| `glass-canary` | authored-script evasion (RTS overlay) | yes |
+| `happy-time-weed` | ransomware range | no — live-range estate (podman/VM); `play` exits 7 and points at `load` + `./bin/launch.sh` |
+
+Each estate's `DESIGN.md` is its objective and intended chain. Estates are
+stdlib, so a card needs nothing but Python 3 on the host it is played on.
+
+The always-on dashboard in `../dashboard/` follows the card as well: with no
+active run it reads `topology.json` from whichever card is inserted and badges
+the board `CARD` (versus `BUILD PLAN` for the checked-out range), so plugging a
+different stick changes the map with no config edit and no restart. A card
+topology declares its own zones and is never re-zoned into this lab's segments.
+
 ## Dashboard
 
 The dashboard is **local and in-repo** — pure stdlib, no Node, no CDN, no build

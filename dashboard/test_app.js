@@ -314,4 +314,29 @@ vm.runInContext('renderEvents(snapshot)', context);
 const defLi = getElement('events').children.find((li) => li.className === 'defense');
 assert.ok(defLi, 'defence actions should render as defence rows in the feed');
 
+// --- run-card provenance: is the board showing a card or this lab's build? ---
+const sourcePill = getElement('run-source-pill');
+vm.runInContext(`renderRunCard({status: {
+  run_id: 'range-topology', range: 'blind-forge', state: 'idle', topology_source: 'card',
+  current_step: {detail: 'No active run — showing blind-forge from the inserted card.'},
+}})`, context);
+assert.equal(sourcePill.hidden, false, 'an inserted range card should badge the run card');
+assert.equal(sourcePill.textContent, 'CARD');
+assert.equal(sourcePill.className, 'pill pill-card', 'a card needs its own colour, not the neutral idle pill');
+assert.match(sourcePill.title, /inserted range card/);
+
+vm.runInContext(`renderRunCard({status: {
+  run_id: 'range-topology', range: 'keystone', state: 'idle', topology_source: 'build',
+}})`, context);
+assert.equal(sourcePill.textContent, 'BUILD PLAN');
+assert.equal(sourcePill.className, 'pill pill-idle');
+
+vm.runInContext(`renderRunCard({status: {run_id: 'run9', state: 'running', range: 'keystone'}})`, context);
+assert.equal(sourcePill.hidden, true, 'a live run reports its own telemetry and needs no source badge');
+
+vm.runInContext(`renderRunCard({status: {
+  run_id: 'range-topology', range: 'keystone', state: 'idle', topology_source: null,
+}})`, context);
+assert.equal(sourcePill.hidden, true, 'no card and no build plan should not claim a source');
+
 console.log('graph SVG smoke test passed');
